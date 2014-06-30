@@ -42,6 +42,10 @@ config MACH_GENMAI
 	bool "Genmai board"
 	depends on ARCH_R7S72100
 
+config MACH_RSKRZA1
+	bool "RZ/A1 RSK board"
+	depends on ARCH_R7S72100
+
 config MACH_KOELSCH
 	bool "Koelsch board"
 	depends on ARCH_R8A7791
@@ -236,6 +240,11 @@ config MACH_GENMAI_REFERENCE
 	   of not supporting a number of devices.
 
 	   This is intended to aid developers
+
+config MACH_RSKRZA1
+	bool "RZ/A1 RSK board"
+	depends on ARCH_R7S72100
+	select USE_OF
 
 config MACH_MARZEN
 	bool "MARZEN board"
