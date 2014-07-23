@@ -83,7 +83,13 @@ kallsyms()
 	fi
 
 	if [ -n "${CONFIG_ARM}" ] && [ -n "${CONFIG_PAGE_OFFSET}" ]; then
-		kallsymopt="${kallsymopt} --page-offset=$CONFIG_PAGE_OFFSET"
+		if [ -n "${CONFIG_XIP_KERNEL}" ]; then
+			# For XIP Kernels, the kernel starts 16M below RAM
+			# See arch/arm/include/asm/memory.h
+			kallsymopt="${kallsymopt} --page-offset=$(printf \"%X\" $[$CONFIG_PAGE_OFFSET-0x01000000])"
+		else
+			kallsymopt="${kallsymopt} --page-offset=$CONFIG_PAGE_OFFSET"
+		fi
 	fi
 
 	local aflags="${KBUILD_AFLAGS} ${KBUILD_AFLAGS_KERNEL}               \
