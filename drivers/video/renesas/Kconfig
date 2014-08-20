@@ -1,0 +1,38 @@
+config FB_VDC5
+	tristate "RZ/A1H frame-buffer driver for VDC5 (EXPERIMENTAL)"
+	depends on FB
+	depends on ARCH_RZA1
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	select LCD_R0P7724LE0011RL
+	help
+	  Frame-buffer device for the Renesas RZ/A1H based boards.
+	  This version of driver supports the following board and
+	  LCD panels.
+	  + the "Genmai" CPU board with Option board
+	    + Channel 0:
+	      (0) unuse
+	      (1) LCD-KIT-B01 (using J10 connector)
+	      (2) LCD Moniror (using J15 connector)
+	    + Channel 1:
+	      (0) unuse
+	      (1) LCD-KIT-B01 (using J12 connector)
+	      (2) R0P7724LE0011RL (using J14 connector)
+	      (3) LCD Moniror (using J16 connector)
+	  To choose the LCD panel, use vdc5fb0= kernel boot option
+	  for channel 0 and vdc5fb1= for channel 1, like:
+	      vdc5fb0=1 vdc5fb1=0
+	  This example shows that the LCD-KIT-B01 is used for
+	  channel 0, and channel 1 is not used. Please use this
+	  driver with this default configuration.
+	  Note that there are some signal line conflictions
+	  between channel 1 of this device and SDHI/ETHER devices.
+	  So, when you specify other than 0 with vdc5fb1= option,
+	  this driver forcibly disables the SDHI/ETHER drivers.
+	  You also need to change jumper and dip-switch settings.
+
+config LCD_KIT_B01
+	bool
+
