@@ -381,6 +381,12 @@ config SPI_RSPI
 	help
 	  SPI driver for Renesas RSPI and QSPI blocks.
 
+config SPI_SH_SPIBSC
+	tristate "Renesas SPIBSC controller for RZA1"
+	depends on ARCH_RZA1
+	help
+	  SPIBSC driver for Renesas SPIBSC blocks.
+
 config SPI_S3C24XX
 	tristate "Samsung S3C24XX series SPI"
 	depends on ARCH_S3C24XX
