@@ -253,4 +253,14 @@ config PWM_VT8500
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-vt8500.
 
+config PWM_RZA1
+	tristate "RZ/A1 pwm support"
+	depends on ARCH_R7S72100
+	help
+	  Generic PWM framework driver for RZ/A1.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-rza1.
+
+
 endif
