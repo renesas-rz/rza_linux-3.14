@@ -413,7 +413,7 @@ static int sh_adc_get_mds_ch(struct iio_dev *idev)
 
 static int sh_adc_configure_trigger(struct iio_trigger *trig, bool state)
 {
-	struct iio_dev *idev = (struct iio_dev *)trig->private_data;
+	struct iio_dev *idev = (struct iio_dev *)dev_get_drvdata(&trig->dev);
 	struct sh_adc *adc = iio_priv(idev);
 	int mds_ch;
 
@@ -451,7 +451,7 @@ static int sh_adc_trigger_init(struct iio_dev *idev)
 	if (!trig)
 		return -ENOMEM;
 	trig->dev.parent = idev->dev.parent;
-	trig->private_data = idev;
+	dev_set_drvdata(&trig->dev, idev);
 	trig->ops = &sh_adc_trigger_ops;
 
 	ret = iio_trigger_register(trig);
@@ -652,9 +652,9 @@ static int sh_adc_probe(struct platform_device *pdev)
 		chan->scan_type.realbits = 12;
 		chan->scan_type.storagebits = 16;
 		chan->scan_type.shift = 4;
-		chan->info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT |
-				  IIO_CHAN_INFO_SAMP_FREQ_SHARED_BIT |
-				  IIO_CHAN_INFO_RAW_SEPARATE_BIT;
+		chan->info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |
+				  BIT(IIO_CHAN_INFO_SAMP_FREQ);
+		chan->info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
 	}
 	timestamp = chan_array + i;
 	timestamp->type = IIO_TIMESTAMP;
