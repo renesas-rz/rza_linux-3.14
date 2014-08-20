@@ -1,7 +1,7 @@
 /*
  * R8A66597 UDC (USB gadget)
  *
- * Copyright (C) 2006-2009 Renesas Solutions Corp.
+ * Copyright (C) 2006-2014 Renesas Solutions Corp.
  *
  * Author : Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
  *
@@ -300,9 +300,10 @@ static inline void pipe_change(struct r8a66597 *r8a66597, u16 pipenum)
 {
 	struct r8a66597_ep *ep = r8a66597->pipenum2ep[pipenum];
 
+#ifndef CONFIG_ARCH_R7S72100
 	if (ep->use_dma)
 		r8a66597_bclr(r8a66597, DREQE, ep->fifosel);
-
+#endif
 	r8a66597_mdfy(r8a66597, pipenum, CURPIPE, ep->fifosel);
 
 	ndelay(450);
@@ -312,8 +313,10 @@ static inline void pipe_change(struct r8a66597 *r8a66597, u16 pipenum)
 	else
 		r8a66597_bset(r8a66597, mbw_value(r8a66597), ep->fifosel);
 
+#ifndef CONFIG_ARCH_R7S72100
 	if (ep->use_dma)
 		r8a66597_bset(r8a66597, DREQE, ep->fifosel);
+#endif
 }
 
 static int pipe_buffer_setting(struct r8a66597 *r8a66597,
@@ -675,7 +678,9 @@ static void sudmac_free_channel(struct r8a66597 *r8a66597,
 
 	usb_gadget_unmap_request(&r8a66597->gadget, &req->req, ep->dma->dir);
 
+#ifndef CONFIG_ARCH_R7S72100
 	r8a66597_bclr(r8a66597, DREQE, ep->fifosel);
+#endif
 	r8a66597_change_curpipe(r8a66597, 0, 0, ep->fifosel);
 
 	ep->dma->used = 0;
@@ -802,10 +807,11 @@ static void start_ep0(struct r8a66597_ep *ep, struct r8a66597_request *req)
 
 static void init_controller(struct r8a66597 *r8a66597)
 {
-	u16 vif = r8a66597->pdata->vif ? LDRV : 0;
 	u16 irq_sense = r8a66597->irq_sense_low ? INTL : 0;
+#ifndef CONFIG_ARCH_R7S72100
+	u16 vif = r8a66597->pdata->vif ? LDRV : 0;
 	u16 endian = r8a66597->pdata->endian ? BIGEND : 0;
-
+#endif
 	if (r8a66597->pdata->on_chip) {
 		if (r8a66597->pdata->buswait)
 			r8a66597_write(r8a66597, r8a66597->pdata->buswait,
@@ -818,13 +824,19 @@ static void init_controller(struct r8a66597 *r8a66597)
 		r8a66597_bclr(r8a66597, DPRPU, SYSCFG0);
 		r8a66597_bset(r8a66597, USBE, SYSCFG0);
 
+#ifndef CONFIG_ARCH_R7S72100
 		r8a66597_bset(r8a66597, SCKE, SYSCFG0);
+#endif
 
 		r8a66597_bset(r8a66597, irq_sense, INTENB1);
+#ifndef CONFIG_ARCH_R7S72100
 		r8a66597_write(r8a66597, BURST | CPU_ADR_RD_WR,
 				DMA0CFG);
+#endif
 	} else {
+#ifndef CONFIG_ARCH_R7S72100
 		r8a66597_bset(r8a66597, vif | endian, PINCFG);
+#endif
 		r8a66597_bset(r8a66597, HSE, SYSCFG0);		/* High spd */
 		r8a66597_mdfy(r8a66597, get_xtal_from_pdata(r8a66597->pdata),
 				XTAL, SYSCFG0);
@@ -833,26 +845,43 @@ static void init_controller(struct r8a66597 *r8a66597)
 		r8a66597_bclr(r8a66597, DPRPU, SYSCFG0);
 		r8a66597_bset(r8a66597, USBE, SYSCFG0);
 
+#ifndef CONFIG_ARCH_R7S72100
 		r8a66597_bset(r8a66597, XCKE, SYSCFG0);
+#endif
+		usleep_range(3000, 3500);
 
-		msleep(3);
-
+#ifndef CONFIG_ARCH_R7S72100
 		r8a66597_bset(r8a66597, PLLC, SYSCFG0);
 
-		msleep(1);
+		usleep_range(1000, 1500);
 
 		r8a66597_bset(r8a66597, SCKE, SYSCFG0);
 
+#endif
 		r8a66597_bset(r8a66597, irq_sense, INTENB1);
+#ifndef CONFIG_ARCH_R7S72100
 		r8a66597_write(r8a66597, BURST | CPU_ADR_RD_WR,
 			       DMA0CFG);
+#endif
 	}
+#ifdef CONFIG_ARCH_R7S72100
+	msleep(20);
+	r8a66597_bset(r8a66597, UPLLE, SYSCFG0);
+	msleep(20);
+	r8a66597_bset(r8a66597, SUSPM, SUSPMODE0);
+#endif
 }
 
 static void disable_controller(struct r8a66597 *r8a66597)
 {
+#ifdef CONFIG_ARCH_R7S72100
+	r8a66597_bclr(r8a66597, SUSPM, SUSPMODE0);
+	r8a66597_bclr(r8a66597, UPLLE, SYSCFG0);
+#endif
 	if (r8a66597->pdata->on_chip) {
+#ifndef CONFIG_ARCH_R7S72100
 		r8a66597_bset(r8a66597, SCKE, SYSCFG0);
+#endif
 		r8a66597_bclr(r8a66597, UTST, TESTMODE);
 
 		/* disable interrupts */
@@ -868,21 +897,26 @@ static void disable_controller(struct r8a66597 *r8a66597)
 		r8a66597_write(r8a66597, 0, BEMPSTS);
 
 		r8a66597_bclr(r8a66597, USBE, SYSCFG0);
+#ifndef CONFIG_ARCH_R7S72100
 		r8a66597_bclr(r8a66597, SCKE, SYSCFG0);
+#endif
 
 	} else {
 		r8a66597_bclr(r8a66597, UTST, TESTMODE);
+#ifndef CONFIG_ARCH_R7S72100
 		r8a66597_bclr(r8a66597, SCKE, SYSCFG0);
 		udelay(1);
 		r8a66597_bclr(r8a66597, PLLC, SYSCFG0);
 		udelay(1);
 		udelay(1);
 		r8a66597_bclr(r8a66597, XCKE, SYSCFG0);
+#endif
 	}
 }
 
 static void r8a66597_start_xclock(struct r8a66597 *r8a66597)
 {
+#ifndef CONFIG_ARCH_R7S72100
 	u16 tmp;
 
 	if (!r8a66597->pdata->on_chip) {
@@ -890,6 +924,7 @@ static void r8a66597_start_xclock(struct r8a66597 *r8a66597)
 		if (!(tmp & XCKE))
 			r8a66597_bset(r8a66597, XCKE, SYSCFG0);
 	}
+#endif
 }
 
 static struct r8a66597_request *get_request_from_ep(struct r8a66597_ep *ep)

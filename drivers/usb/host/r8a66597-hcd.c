@@ -1,7 +1,7 @@
 /*
  * R8A66597 HCD (Host Controller Driver)
  *
- * Copyright (C) 2006-2007 Renesas Solutions Corp.
+ * Copyright (C) 2006-2013 Renesas Solutions Corp.
  * Portions Copyright (C) 2004 Psion Teklogix (for NetBook PRO)
  * Portions Copyright (C) 2004-2005 David Brownell
  * Portions Copyright (C) 1999 Roman Weissgaerber
@@ -88,6 +88,7 @@ static void set_devadd_reg(struct r8a66597 *r8a66597, u8 r8a66597_address,
 	r8a66597_write(r8a66597, val, devadd_reg);
 }
 
+#ifndef CONFIG_ARCH_R7S72100
 static int r8a66597_clock_enable(struct r8a66597 *r8a66597)
 {
 	u16 tmp;
@@ -145,6 +146,46 @@ static void r8a66597_clock_disable(struct r8a66597 *r8a66597)
 		r8a66597_bclr(r8a66597, USBE, SYSCFG0);
 	}
 }
+#else
+static int r8a66597_clock_enable(struct r8a66597 *r8a66597)
+{
+	u16 tmp;
+	int i = 0;
+
+	if (r8a66597->pdata->on_chip)
+		clk_enable(r8a66597->clk);
+
+	do {
+		r8a66597_write(r8a66597, USBE, SYSCFG0);
+		tmp = r8a66597_read(r8a66597, SYSCFG0);
+		if (i++ > 1000) {
+			printk(KERN_ERR "r8a66597: reg access fail.\n");
+			return -ENXIO;
+		}
+	} while ((tmp & USBE) != USBE);
+	r8a66597_bclr(r8a66597, USBE, SYSCFG0);
+
+	if (XTAL48 == get_xtal_from_pdata(r8a66597->pdata))
+		r8a66597_bclr(r8a66597, XTAL, SYSCFG0);
+	else
+		r8a66597_bset(r8a66597, XTAL, SYSCFG0);
+	msleep(20);
+	r8a66597_bset(r8a66597, UPLLE, SYSCFG0);
+	msleep(20);
+	r8a66597_bset(r8a66597, SUSPM, SUSPMODE0);
+	return 0;
+}
+static void r8a66597_clock_disable(struct r8a66597 *r8a66597)
+{
+	r8a66597_bclr(r8a66597, SUSPM, SUSPMODE0);
+	r8a66597_bclr(r8a66597, UPLLE, SYSCFG0);
+	msleep(20);
+	r8a66597_bclr(r8a66597, USBE, SYSCFG0);
+	msleep(20);
+	if (r8a66597->pdata->on_chip)
+		clk_disable(r8a66597->clk);
+}
+#endif /* CONFIG_ARCH_R7S72100 */
 
 static void r8a66597_enable_port(struct r8a66597 *r8a66597, int port)
 {
@@ -154,7 +195,9 @@ static void r8a66597_enable_port(struct r8a66597 *r8a66597, int port)
 	r8a66597_bset(r8a66597, val, get_syscfg_reg(port));
 	r8a66597_bset(r8a66597, HSE, get_syscfg_reg(port));
 
+#ifndef CONFIG_ARCH_R7S72100
 	r8a66597_write(r8a66597, BURST | CPU_ADR_RD_WR, get_dmacfg_reg(port));
+#endif
 	r8a66597_bclr(r8a66597, DTCHE, get_intenb_reg(port));
 	r8a66597_bset(r8a66597, ATTCHE, get_intenb_reg(port));
 }
@@ -181,7 +224,9 @@ static void r8a66597_disable_port(struct r8a66597 *r8a66597, int port)
 static int enable_controller(struct r8a66597 *r8a66597)
 {
 	int ret, port;
+#ifndef CONFIG_ARCH_R7S72100
 	u16 vif = r8a66597->pdata->vif ? LDRV : 0;
+#endif
 	u16 irq_sense = r8a66597->irq_sense_low ? INTL : 0;
 	u16 endian = r8a66597->pdata->endian ? BIGEND : 0;
 
@@ -189,7 +234,9 @@ static int enable_controller(struct r8a66597 *r8a66597)
 	if (ret < 0)
 		return ret;
 
+#ifndef CONFIG_ARCH_R7S72100
 	r8a66597_bset(r8a66597, vif & LDRV, PINCFG);
+#endif
 	r8a66597_bset(r8a66597, USBE, SYSCFG0);
 
 	r8a66597_bset(r8a66597, BEMPE | NRDYE | BRDYE, INTENB0);

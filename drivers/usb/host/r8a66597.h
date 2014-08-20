@@ -1,7 +1,7 @@
 /*
  * R8A66597 HCD (Host Controller Driver)
  *
- * Copyright (C) 2006-2007 Renesas Solutions Corp.
+ * Copyright (C) 2006-2013 Renesas Solutions Corp.
  * Portions Copyright (C) 2004 Psion Teklogix (for NetBook PRO)
  * Portions Copyright (C) 2004-2005 David Brownell
  * Portions Copyright (C) 1999 Roman Weissgaerber
@@ -309,9 +309,11 @@ static inline u16 get_xtal_from_pdata(struct r8a66597_platdata *pdata)
 	case R8A66597_PLATDATA_XTAL_12MHZ:
 		clock = XTAL12;
 		break;
+#ifndef CONFIG_ARCH_R7S72100
 	case R8A66597_PLATDATA_XTAL_24MHZ:
 		clock = XTAL24;
 		break;
+#endif
 	case R8A66597_PLATDATA_XTAL_48MHZ:
 		clock = XTAL48;
 		break;

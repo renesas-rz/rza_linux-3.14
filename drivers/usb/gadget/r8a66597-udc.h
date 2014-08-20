@@ -1,7 +1,7 @@
 /*
  * R8A66597 UDC
  *
- * Copyright (C) 2007-2009 Renesas Solutions Corp.
+ * Copyright (C) 2007-2014 Renesas Solutions Corp.
  *
  * Author : Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
  *
@@ -243,14 +243,16 @@ static inline u16 get_xtal_from_pdata(struct r8a66597_platdata *pdata)
 	case R8A66597_PLATDATA_XTAL_12MHZ:
 		clock = XTAL12;
 		break;
+#ifndef CONFIG_ARCH_R7S72100
 	case R8A66597_PLATDATA_XTAL_24MHZ:
 		clock = XTAL24;
 		break;
+#endif
 	case R8A66597_PLATDATA_XTAL_48MHZ:
 		clock = XTAL48;
 		break;
 	default:
-		printk(KERN_ERR "r8a66597: platdata clock is wrong.\n");
+		pr_err("r8a66597:  platdata clock is wrong.\n");
 		break;
 	}
 
