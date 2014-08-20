@@ -383,7 +383,7 @@ config SPI_RSPI
 
 config SPI_SH_SPIBSC
 	tristate "Renesas SPIBSC controller for RZA1"
-	depends on ARCH_RZA1
+	depends on ARCH_R7S72100
 	help
 	  SPIBSC driver for Renesas SPIBSC blocks.
 
