@@ -1,7 +1,7 @@
 config FB_VDC5
 	tristate "RZ/A1H frame-buffer driver for VDC5 (EXPERIMENTAL)"
 	depends on FB
-	depends on ARCH_RZA1
+	depends on ARCH_R7S72100
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT

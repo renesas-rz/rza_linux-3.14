@@ -18,8 +18,15 @@
  *
  */
 
-/* For vdc5fb driver */
+#include <linux/kernel.h>
+#include <linux/platform_device.h>
+#include <mach/common.h>
+#include <mach/irqs.h>
 #include <video/vdc5fb.h>
+#include <mach/r7s72100.h>
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
+#include <linux/interrupt.h>
 #include <linux/gpio.h>
 /* For the LCD-KIT-B01 */
 #include <linux/input/ili210x.h>
@@ -74,14 +81,6 @@ static struct resource vdc5fb_resources_ch1[VDC5FB_NUM_RES] = {
 
 /*************************************************************************/
 
-static int vdc5fb_pinmux_common(struct platform_device *pdev, int rgb);
-
-/* LCD MONITOR */
-static int vdc5fb_pinmux_vga(struct platform_device *pdev)
-{
-	return vdc5fb_pinmux_common(pdev, 24);
-}
-
 static struct fb_videomode videomode_xga = {
 	.name		= "XGA",
 	.refresh	= 61,	/* calculated */
@@ -118,7 +117,6 @@ static struct vdc5fb_pdata vdc5fb_pdata_ch0_vga = {
 		[LCD_TCON5]	= TCON_SEL_UNUSED,	/* NC */
 		[LCD_TCON6]	= TCON_SEL_UNUSED,	/* NC */
 	},
-	.pinmux			= vdc5fb_pinmux_vga,
 };
 
 static struct vdc5fb_pdata vdc5fb_pdata_ch1_vga = {
@@ -140,16 +138,9 @@ static struct vdc5fb_pdata vdc5fb_pdata_ch1_vga = {
 		[LCD_TCON5]	= TCON_SEL_STH,		/* HSYNC */
 		[LCD_TCON6]	= TCON_SEL_UNUSED,	/* NC */
 	},
-	.pinmux			= vdc5fb_pinmux_vga,
 };
 
 /*************************************************************************/
-
-/* LCD-KIT-B01 */
-static int vdc5fb_pinmux_lcd_kit_b01(struct platform_device *pdev)
-{
-	return vdc5fb_pinmux_common(pdev, 18);
-}
 
 static struct fb_videomode videomode_wvga_lcd_kit_b01 = {
 	.name		= "WVGA",
@@ -187,7 +178,6 @@ static struct vdc5fb_pdata vdc5fb_pdata_ch0_lcd_kit_b01 = {
 		[LCD_TCON5]	= TCON_SEL_UNUSED,	/* NC */
 		[LCD_TCON6]	= TCON_SEL_UNUSED,	/* NC */
 	},
-	.pinmux			= vdc5fb_pinmux_lcd_kit_b01,
 };
 
 static struct vdc5fb_pdata vdc5fb_pdata_ch1_lcd_kit_b01 = {
@@ -209,16 +199,9 @@ static struct vdc5fb_pdata vdc5fb_pdata_ch1_lcd_kit_b01 = {
 		[LCD_TCON5]	= TCON_SEL_UNUSED,	/* NC */
 		[LCD_TCON6]	= TCON_SEL_UNUSED,	/* NC */
 	},
-	.pinmux			= vdc5fb_pinmux_lcd_kit_b01,
 };
 
 /*************************************************************************/
-
-/* R0P7724LE0011RL */
-static int vdc5fb_pinmux_r0p7724le0011rl(struct platform_device *pdev)
-{
-	return vdc5fb_pinmux_common(pdev, 18);
-}
 
 static struct fb_videomode videomode_wvga_r0p7724le0011rl = {
 	.name		= "WVGA",
@@ -261,7 +244,6 @@ static struct vdc5fb_pdata vdc5fb_pdata_r0p7724le0011rl = {
 		[LCD_TCON5]	= TCON_SEL_DE,		/* LCDDISP(DE) */
 		[LCD_TCON6]	= TCON_SEL_UNUSED,	/* TP_IRQ# */
 	},
-	.pinmux			= vdc5fb_pinmux_r0p7724le0011rl,
 };
 
 /*************************************************************************/
@@ -303,16 +285,12 @@ static struct ili210x_platform_data i2c0_ili210x_pdata = {
 	.irq_flags		= IRQF_TRIGGER_LOW,	/* unused */
 	.poll_period		= 20,
 	.get_pendown_state	= NULL,
-	.polling		= true,
-	.r8c_addr		= 0x42,
 };
 
 static struct ili210x_platform_data i2c3_ili210x_pdata = {
 	.irq_flags		= IRQF_TRIGGER_HIGH,
 	.poll_period		= 20,
 	.get_pendown_state	= NULL,
-	.polling		= true,
-	.r8c_addr		= 0x42,
 };
 
 static struct i2c_board_info i2c0_ili210x_devices[] = {
@@ -343,7 +321,6 @@ static struct tsc2007_platform_data i2c_tsc2007_pdata = {
 	.model			= 2007,
 	.x_plate_ohms		= 180,
 	.max_rt			= 0,    /* u16 */
-	.poll_delay		= 0,    /* unsigned long */
 	.poll_period		= 0,    /* unsigned long */
 	.fuzzx			= 0,    /* int */
 	.fuzzy			= 0,    /* int */
@@ -457,152 +434,6 @@ static int vdc5fb_setup(void)
 	}
 
 	return 0;
-}
-
-/*************************************************************************/
-
-struct pfc_pinmux_assign {
-	int port;	/* enum */
-	int mode;	/* enum */
-	int opts;
-};
-
-static struct pfc_pinmux_assign lcd0_common[] = {
-	{ P11_15, ALT5, },	/* LCD0_CLK */
-	{ P11_7,  ALT5, },	/* LCD0_DATA0 */
-	{ P11_6,  ALT5, },	/* LCD0_DATA1 */
-	{ P11_5,  ALT5, },	/* LCD0_DATA2 */
-	{ P11_4,  ALT5, },	/* LCD0_DATA3 */
-	{ P11_3,  ALT5, },	/* LCD0_DATA4 */
-	{ P11_2,  ALT5, },	/* LCD0_DATA5 */
-	{ P11_1,  ALT5, },	/* LCD0_DATA6 */
-	{ P11_0,  ALT5, },	/* LCD0_DATA7 */
-	{ P10_15, ALT5, },	/* LCD0_DATA8 */
-	{ P10_14, ALT5, },	/* LCD0_DATA9 */
-	{ P10_13, ALT5, },	/* LCD0_DATA10 */
-	{ P10_12, ALT5, },	/* LCD0_DATA11 */
-	{ P10_11, ALT5, },	/* LCD0_DATA12 */
-	{ P10_10, ALT5, },	/* LCD0_DATA13 */
-	{ P10_9,  ALT5, },	/* LCD0_DATA14 */
-	{ P10_8,  ALT5, },	/* LCD0_DATA15 */
-	{ P10_7,  ALT5, },	/* LCD0_DATA16 */
-	{ P10_6,  ALT5, },	/* LCD0_DATA17 */
-};
-
-static struct pfc_pinmux_assign lcd0_data24[] = {
-	{ P10_5,  ALT5, },	/* LCD0_DATA18 */
-	{ P10_4,  ALT5, },	/* LCD0_DATA19 */
-	{ P10_3,  ALT5, },	/* LCD0_DATA20 */
-	{ P10_2,  ALT5, },	/* LCD0_DATA21 */
-	{ P10_1,  ALT5, },	/* LCD0_DATA22 */
-	{ P10_0,  ALT5, },	/* LCD0_DATA23 */
-};
-
-static struct pfc_pinmux_assign lcd0_extclk[] = {
-	{ P5_8,   ALT1, },	/* LCD0_EXTCLK */
-};
-
-static struct pfc_pinmux_assign lcd0_tcon[] = {
-	{ P11_14, ALT5, },	/* LCD0_TCON0 */
-	{ P11_13, ALT5, },	/* LCD0_TCON1 */
-	{ P11_12, ALT5, },	/* LCD0_TCON2 */
-	{ P11_11, ALT5, },	/* LCD0_TCON3 */
-	{ P11_10, ALT5, },	/* LCD0_TCON4 */
-	{ P11_9,  ALT5, },	/* LCD0_TCON5 */
-	{ P11_8,  ALT5, },	/* LCD0_TCON6 */
-};
-
-static struct pfc_pinmux_assign lcd1_common[] = {
-	{ P4_12,  ALT2, },	/* LCD1_CLK (CLOCK) */
-	{ P5_0,   ALT2, },	/* LCD1_DATA0 */
-	{ P5_1,   ALT2, },	/* LCD1_DATA1 */
-	{ P5_2,   ALT2, },	/* LCD1_DATA2 */
-	{ P5_3,   ALT2, },	/* LCD1_DATA3 */
-	{ P5_4,   ALT2, },	/* LCD1_DATA4 */
-	{ P5_5,   ALT2, },	/* LCD1_DATA5 */
-	{ P5_6,   ALT2, },	/* LCD1_DATA6 */
-	{ P5_7,   ALT2, },	/* LCD1_DATA7 */
-	{ P2_8,   ALT6, },	/* LCD1_DATA8 */
-	{ P2_9,   ALT6, },	/* LCD1_DATA9 */
-	{ P2_10,  ALT6, },	/* LCD1_DATA10 */
-	{ P2_11,  ALT6, },	/* LCD1_DATA11 */
-	{ P2_12,  ALT7, },	/* LCD1_DATA12 */
-	{ P2_13,  ALT7, },	/* LCD1_DATA13 */
-	{ P2_14,  ALT7, },	/* LCD1_DATA14 */
-	{ P2_15,  ALT7, },	/* LCD1_DATA15 */
-	{ P5_9,   ALT7, },	/* LCD1_DATA16 */
-	{ P5_10,  ALT7, },	/* LCD1_DATA17 */
-};
-
-static struct pfc_pinmux_assign lcd1_data24[] = {
-	{ P9_2,   ALT1, },	/* LCD1_DATA18 */
-	{ P9_3,   ALT1, },	/* LCD1_DATA19 */
-	{ P9_4,   ALT1, },	/* LCD1_DATA20 */
-	{ P9_5,   ALT1, },	/* LCD1_DATA21 */
-	{ P9_6,   ALT1, },	/* LCD1_DATA22 */
-	{ P9_7,   ALT1, },	/* LCD1_DATA23 */
-};
-
-static struct pfc_pinmux_assign lcd1_extclk[] = {
-	{ P3_7,   ALT4, },	/* LCD1_EXTCLK */
-};
-
-static struct pfc_pinmux_assign lcd1_tcon[] = {
-	{ P4_13,  ALT2, },	/* LCD1_TCON0 */
-	{ P4_14,  ALT2, },	/* LCD1_TCON1 */
-	{ P4_15,  ALT2, },	/* LCD1_TCON2 */
-	{ P4_8,   ALT2, },	/* LCD1_TCON3 */
-	{ P4_9,   ALT2, },	/* LCD1_TCON4 */
-	{ P4_10,  ALT2, },	/* LCD1_TCON5 */
-	{ P4_11,  ALT2, },	/* LCD1_TCON6 */
-};
-
-static void vdc5fb_pinmux(struct pfc_pinmux_assign *pf, size_t num)
-{
-	size_t n;
-
-	for (n = 0; n < num; pf++, n++)
-		rza1_pfc_pin_assign(pf->port, pf->mode, DIIO_PBDC_DIS);
-}
-
-static void vdc5fb_pinmux_tcon(struct pfc_pinmux_assign *pf, size_t num,
-	struct vdc5fb_pdata *pdata)
-{
-	size_t n;
-
-	for (n = 0; n < num; pf++, n++)
-		if (pdata->tcon_sel[n] != TCON_SEL_UNUSED)
-			rza1_pfc_pin_assign(pf->port, pf->mode, DIIO_PBDC_DIS);
-}
-
-static int vdc5fb_pinmux_common(struct platform_device *pdev, int rgb)
-{
-	struct vdc5fb_pdata *pdata
-	    = (struct vdc5fb_pdata *)pdev->dev.platform_data;
-	int ret = 0;
-
-	switch (pdev->id) {
-	case 0:
-		vdc5fb_pinmux(lcd0_common, ARRAY_SIZE(lcd0_common));
-		if (rgb == 24)
-			vdc5fb_pinmux(lcd0_data24, ARRAY_SIZE(lcd0_data24));
-		if (pdata->panel_icksel == ICKSEL_EXTCLK0)
-			vdc5fb_pinmux(lcd0_extclk, ARRAY_SIZE(lcd0_extclk));
-		vdc5fb_pinmux_tcon(lcd0_tcon, ARRAY_SIZE(lcd0_tcon), pdata);
-		break;
-	case 1:
-		vdc5fb_pinmux(lcd1_common, ARRAY_SIZE(lcd1_common));
-		if (rgb == 24)
-			vdc5fb_pinmux(lcd1_data24, ARRAY_SIZE(lcd1_data24));
-		if (pdata->panel_icksel == ICKSEL_EXTCLK0)
-			vdc5fb_pinmux(lcd1_extclk, ARRAY_SIZE(lcd1_extclk));
-		vdc5fb_pinmux_tcon(lcd1_tcon, ARRAY_SIZE(lcd1_tcon), pdata);
-		break;
-	default:
-		ret = -ENODEV;
-		break;
-	}
-	return ret;
 }
 
 /*************************************************************************/

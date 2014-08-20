@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fb.h>
+#include <linux/uaccess.h>
 #include <asm/div64.h>
 #include <video/vdc5fb.h>
 

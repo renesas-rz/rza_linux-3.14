@@ -26,7 +26,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/gpio.h>
-#include <mach/rza1.h>
+#include <mach/r7s72100.h>
 
 /************************************************************************/
 
@@ -93,6 +93,7 @@ static int lcd_kit_b01_i2c_recv(struct i2c_client *client, u8 cmd, u8 *data)
 
 /************************************************************************/
 
+#if 0
 static void lcd_kit_b01_reset_panel(struct device *dev, unsigned int i)
 {
 	dev_info(dev, "Reset LCD panel on i2c.%d\n", dev->id);
@@ -115,6 +116,7 @@ static void lcd_kit_b01_reset_panel(struct device *dev, unsigned int i)
 		break;
 	}
 }
+#endif
 
 static ssize_t lcd_kit_b01_store_reset_panel(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
@@ -125,9 +127,9 @@ static ssize_t lcd_kit_b01_store_reset_panel(struct device *dev,
 	rc = kstrtouint(buf, 10, &i);
 	if (rc)
 		return rc;
-	if (i) {
-		lcd_kit_b01_reset_panel(dev, i);
-	}
+//	if (i) {
+//		lcd_kit_b01_reset_panel(dev, i);
+//	}
 	return count;
 }
 static DEVICE_ATTR(reset_panel, (S_IWUSR | S_IWGRP), NULL, lcd_kit_b01_store_reset_panel);
@@ -262,7 +264,7 @@ static int lcd_kit_b01_i2c_probe(struct i2c_client *client,
 		goto err_kfree;
 
 /* RESET */
-	lcd_kit_b01_reset_panel(&client->dev, 1);
+//	lcd_kit_b01_reset_panel(&client->dev, 1);
 	msleep(100);
 
 	priv->client = client;
