@@ -1,6 +1,7 @@
 /*
  * wm8978.c  --  WM8978 ALSA SoC Audio Codec driver
  *
+ * Copyright (C) 2013  Renesas Solutions Corp.
  * Copyright (C) 2009-2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
  * Copyright (C) 2007 Carlos Munoz <carlos@kenati.com>
  * Copyright 2006-2009 Wolfson Microelectronics PLC.
@@ -27,7 +28,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <asm/div64.h>
-
+#include <linux/spi/spi.h>
 #include "wm8978.h"
 
 static const struct reg_default wm8978_reg_defaults[] = {
@@ -150,10 +151,11 @@ static const struct snd_kcontrol_new wm8978_snd_controls[] = {
 
 	SOC_DOUBLE("DAC Inversion Switch", WM8978_DAC_CONTROL, 0, 1, 1, 0),
 
+#if !defined(CONFIG_MACH_RSKRZA1) /* The volume of a codec is not changed, either, when the volume of DVU is changed.  */
 	SOC_DOUBLE_R_TLV("PCM Volume",
 		WM8978_LEFT_DAC_DIGITAL_VOLUME, WM8978_RIGHT_DAC_DIGITAL_VOLUME,
 		0, 255, 0, digital_tlv),
-
+#endif
 	SOC_SINGLE("High Pass Filter Switch", WM8978_ADC_CONTROL, 8, 1, 0),
 	SOC_SINGLE("High Pass Cut Off", WM8978_ADC_CONTROL, 4, 7, 0),
 	SOC_DOUBLE("ADC Inversion Switch", WM8978_ADC_CONTROL, 0, 1, 1, 0),
@@ -751,6 +753,7 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* filter coefficient */
+#if !defined(CONFIG_MACH_RSKRZA1) /* codec setup is fixed to 44100Hz */
 	switch (params_rate(params)) {
 	case 8000:
 		add_ctl |= 0x5 << 1;
@@ -771,9 +774,14 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 	case 48000:
 		break;
 	}
+#endif
 
 	/* Sampling rate is known now, can configure the MCLK divider */
+#if defined(CONFIG_MACH_RSKRZA1) /* codec setup is fixed to 44100Hz */
+	wm8978->f_256fs = 44100 * 256;
+#else
 	wm8978->f_256fs = params_rate(params) * 256;
+#endif
 
 	if (wm8978->sysclk == WM8978_MCLK) {
 		wm8978->mclk_idx = -1;
@@ -976,7 +984,6 @@ static int wm8978_probe(struct snd_soc_codec *codec)
 {
 	struct wm8978_priv *wm8978 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0, i;
-
 	/*
 	 * Set default system clock to PLL, it is more precise, this is also the
 	 * default hardware setting
@@ -1035,9 +1042,8 @@ static const struct regmap_config wm8978_regmap_config = {
 	.reg_defaults = wm8978_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8978_reg_defaults),
 };
-
-static int wm8978_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+#if !(defined(CONFIG_SPI_MASTER) && defined(CONFIG_MACH_RSKRZA1))
+static int wm8978_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	struct wm8978_priv *wm8978;
 	int ret;
@@ -1062,7 +1068,7 @@ static int wm8978_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "Failed to issue reset: %d\n", ret);
 		return ret;
 	}
-
+	
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8978, &wm8978_dai, 1);
 	if (ret != 0) {
@@ -1095,8 +1101,97 @@ static struct i2c_driver wm8978_i2c_driver = {
 	.remove =   wm8978_i2c_remove,
 	.id_table = wm8978_i2c_id,
 };
+#else /* !(defined(CONFIG_SPI_MASTER) && defined(CONFIG_MACH_RSKRZA1)) */
+/* RSPI4 is Registration */
+static int wm8978_rspi_probe(struct spi_device *rspi)
+{
+	struct wm8978_priv *wm8978;
+	int ret;
 
-module_i2c_driver(wm8978_i2c_driver);
+	wm8978 = devm_kzalloc(&rspi->dev, sizeof(struct wm8978_priv), GFP_KERNEL);
+	if (wm8978 == NULL){
+		pr_warn(KERN_WARNING "error:wm8978_rspi_probe():NULL.\n");
+		return -ENOMEM;
+	}
+
+	wm8978->regmap = devm_regmap_init_spi(rspi, &wm8978_regmap_config);
+	if (IS_ERR(wm8978->regmap)) {
+		ret = PTR_ERR(wm8978->regmap);
+		dev_err(&rspi->dev, "Failed to allocate regmap: %d\n", ret);
+		return ret;
+	}
+
+	spi_set_drvdata(rspi, wm8978);
+	
+	/* Reset the codec */
+	ret = regmap_write(wm8978->regmap, WM8978_RESET, 0);
+	if (ret != 0) {
+		dev_err(&rspi->dev, "Failed to issue reset: %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_register_codec(&rspi->dev,&soc_codec_dev_wm8978, &wm8978_dai, 1);
+
+	if (ret != 0) {
+		dev_err(&rspi->dev, "Failed to register CODEC: %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int wm8978_rspi_remove(struct spi_device *rspi)
+{
+	snd_soc_unregister_codec(&rspi->dev);
+	return 0;
+}
+
+static struct spi_driver wm8978_rspi_driver = {
+	.driver = {
+		.name	= "wm8978",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= wm8978_rspi_probe,
+	.remove		= wm8978_rspi_remove,
+};
+#endif /* !(defined(CONFIG_SPI_MASTER) && defined(CONFIG_MACH_RSKRZA1)) */
+
+static int __init wm8978_modinit(void)
+{
+	int ret = 0;
+	
+#if (defined(CONFIG_SPI_MASTER) && defined(CONFIG_MACH_RSKRZA1))
+	ret = spi_register_driver(&wm8978_rspi_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register wm8978 RSPI driver: %d\n",
+		       ret);
+	}else{
+		printk(KERN_WARNING "wm8978_modinit(). OK \n");
+	}
+#else
+	ret = i2c_add_driver(&wm8978_i2c_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register wm8978 I2C driver: %d\n",
+		       ret);
+	}
+#endif
+
+	return ret;
+}
+
+module_init(wm8978_modinit);
+
+static void __exit wm8978_exit(void)
+{
+#if (defined(CONFIG_SPI_MASTER) && defined(CONFIG_MACH_RSKRZA1))
+	spi_unregister_driver(&wm8978_rspi_driver);
+#else
+	i2c_del_driver(&wm8978_i2c_driver);
+#endif
+
+}
+
+module_exit(wm8978_exit);
 
 MODULE_DESCRIPTION("ASoC WM8978 codec driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");

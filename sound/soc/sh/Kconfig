@@ -41,6 +41,12 @@ config SND_SOC_RCAR
 	help
 	  This option enables R-Car SUR/SCU/SSIU/SSI sound support
 
+config SND_SOC_SCUX
+	tristate
+	depends on ARCH_R7S72100
+	select DMA_ENGINE
+	select DMADEVICES
+
 ##
 ## Boards
 ##
@@ -61,5 +67,22 @@ config SND_SIU_MIGOR
 	select SND_SOC_WM8978
 	help
 	  This option enables sound support for the SH7722 Migo-R board
+
+config SND_SCUX_GENMAI
+	tristate "SCUX sound support on GENMAI"
+	depends on ARCH_R7S72100
+	select SND_SOC_SCUX
+	select SND_SCUX_WM8978
+
+	help
+	  Enable sound support for the RZA1 GENMAI board.
+	  This is supported to the Renesas SCUX peripheral.
+	  Say Y here if you have enabled, otherwise say N.
+	  To compile this driver as a module, say M.
+
+config SND_SCUX_WM8978
+        tristate "GENMAI WM8978 sound support"
+        depends on SND_SCUX_GENMAI
+        select SND_SOC_WM8978
 
 endmenu
