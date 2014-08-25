@@ -46,6 +46,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/i2c-riic.h>
 
 #define RIIC_ICCR1	0x00
 #define RIIC_ICCR2	0x04
@@ -333,6 +334,7 @@ static int riic_i2c_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct riic_dev *riic;
+	struct riic_platform_data *pdata;
 	struct i2c_adapter *adap;
 	struct resource *res;
 	u32 bus_rate = 0;
@@ -366,6 +368,8 @@ static int riic_i2c_probe(struct platform_device *pdev)
 		}
 	}
 
+	pdata = dev_get_platdata(&pdev->dev);
+
 	adap = &riic->adapter;
 	i2c_set_adapdata(adap, riic);
 	strlcpy(adap->name, "Renesas RIIC adapter", sizeof(adap->name));
@@ -376,7 +380,11 @@ static int riic_i2c_probe(struct platform_device *pdev)
 
 	init_completion(&riic->msg_done);
 
-	of_property_read_u32(np, "clock-frequency", &bus_rate);
+	if (pdata) {
+		bus_rate = pdata->bus_rate;
+	} else {	
+		of_property_read_u32(np, "clock-frequency", &bus_rate);
+	}
 	ret = riic_init_hw(riic, bus_rate);
 	if (ret)
 		return ret;
