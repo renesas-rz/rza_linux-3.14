@@ -27,6 +27,7 @@
 #include <mach/r7s72100.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <linux/i2c-riic.h>
 
 /* Ether */
 static const struct sh_eth_plat_data ether_pdata __initconst = {
@@ -53,12 +54,126 @@ static const struct platform_device_info ether_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* I2C0*/
+static const struct resource riic0_resources[] __initconst = {
+	DEFINE_RES_MEM(0xfcfee000, 0x400),
+	DEFINE_RES_IRQ(gic_iid(189)),
+	DEFINE_RES_NAMED(gic_iid(190),1,NULL,IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE),
+	DEFINE_RES_NAMED(gic_iid(191),1,NULL,IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE),
+	DEFINE_RES_IRQ(gic_iid(192)),
+	DEFINE_RES_IRQ(gic_iid(193)),
+	DEFINE_RES_IRQ(gic_iid(194)),
+	DEFINE_RES_IRQ(gic_iid(195)),
+	DEFINE_RES_IRQ(gic_iid(196)),
+};
+
+static const struct riic_platform_data riic0_pdata __initconst = {
+	.bus_rate = 100000,
+};
+
+static const struct platform_device_info riic0_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "i2c-riic",
+	.id		= 0,
+	.res		= riic0_resources,
+	.num_res	= ARRAY_SIZE(riic0_resources),
+	.data		= &riic0_pdata,
+	.size_data	= sizeof(riic0_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+/* I2C1*/
+static const struct resource riic1_resources[] __initconst = {
+	DEFINE_RES_MEM(0xfcfee400, 0x400),
+	DEFINE_RES_IRQ(gic_iid(197)),
+	DEFINE_RES_NAMED(gic_iid(198),1,NULL,IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE),
+	DEFINE_RES_NAMED(gic_iid(199),1,NULL,IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE),
+	DEFINE_RES_IRQ(gic_iid(200)),
+	DEFINE_RES_IRQ(gic_iid(201)),
+	DEFINE_RES_IRQ(gic_iid(202)),
+	DEFINE_RES_IRQ(gic_iid(203)),
+	DEFINE_RES_IRQ(gic_iid(204)),
+};
+
+static const struct riic_platform_data riic1_pdata __initconst = {
+	.bus_rate = 100000,
+};
+
+static const struct platform_device_info riic1_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "i2c-riic",
+	.id		= 1,
+	.res		= riic1_resources,
+	.num_res	= ARRAY_SIZE(riic1_resources),
+	.data		= &riic1_pdata,
+	.size_data	= sizeof(riic1_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static const struct resource riic2_resources[] __initconst = {
+	DEFINE_RES_MEM(0xfcfee800, 0x400),
+	DEFINE_RES_IRQ(gic_iid(205)),
+	DEFINE_RES_NAMED(gic_iid(206),1,NULL,IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE),
+	DEFINE_RES_NAMED(gic_iid(207),1,NULL,IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE),
+	DEFINE_RES_IRQ(gic_iid(208)),
+	DEFINE_RES_IRQ(gic_iid(209)),
+	DEFINE_RES_IRQ(gic_iid(210)),
+	DEFINE_RES_IRQ(gic_iid(211)),
+	DEFINE_RES_IRQ(gic_iid(212)),
+};
+
+static const struct riic_platform_data riic2_pdata __initconst = {
+	.bus_rate = 100000,
+};
+
+static const struct platform_device_info riic2_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "i2c-riic",
+	.id		= 2,
+	.res		= riic2_resources,
+	.num_res	= ARRAY_SIZE(riic2_resources),
+	.data		= &riic2_pdata,
+	.size_data	= sizeof(riic2_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static const struct resource riic3_resources[] __initconst = {
+	DEFINE_RES_MEM(0xfcfeec00, 0x400),
+	DEFINE_RES_IRQ(gic_iid(213)),
+	DEFINE_RES_NAMED(gic_iid(214),1,NULL,IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE),
+	DEFINE_RES_NAMED(gic_iid(215),1,NULL,IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE),
+	DEFINE_RES_IRQ(gic_iid(216)),
+	DEFINE_RES_IRQ(gic_iid(217)),
+	DEFINE_RES_IRQ(gic_iid(218)),
+	DEFINE_RES_IRQ(gic_iid(219)),
+	DEFINE_RES_IRQ(gic_iid(220)),
+};
+
+static const struct riic_platform_data riic3_pdata __initconst = {
+	.bus_rate = 100000,
+};
+
+static const struct platform_device_info riic3_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "i2c-riic",
+	.id		= 3,
+	.res		= riic3_resources,
+	.num_res	= ARRAY_SIZE(riic3_resources),
+	.data		= &riic3_pdata,
+	.size_data	= sizeof(riic3_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
 static void __init rskrza1_add_standard_devices(void)
 {
 	r7s72100_clock_init();
 	r7s72100_add_dt_devices();
 
 	platform_device_register_full(&ether_info);
+	platform_device_register_full(&riic0_info);
+	platform_device_register_full(&riic1_info);
+	platform_device_register_full(&riic2_info);
+	platform_device_register_full(&riic3_info);
 
 }
 
