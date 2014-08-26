@@ -153,6 +153,7 @@ struct clk div4_clks[DIV4_NR] = {
 enum {
 	MSTP107, MSTP106, MSTP105, MSTP104, MSTP103,
 	MSTP97, MSTP96, MSTP95, MSTP94,
+	MSTP92, MSTP93,
 	MSTP74,
 	MSTP60,
 	MSTP47, MSTP46, MSTP45, MSTP44, MSTP43, MSTP42, MSTP41, MSTP40,
@@ -169,6 +170,8 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP96] = SH_CLK_MSTP8(&peripheral0_clk, STBCR9, 6, 0), /* RIIC1 */
 	[MSTP95] = SH_CLK_MSTP8(&peripheral0_clk, STBCR9, 5, 0), /* RIIC2 */
 	[MSTP94] = SH_CLK_MSTP8(&peripheral0_clk, STBCR9, 4, 0), /* RIIC3 */
+	[MSTP93] = SH_CLK_MSTP8(&bus_clk, STBCR9, 3, 0), /* SPIBSC0 */
+	[MSTP92] = SH_CLK_MSTP8(&bus_clk, STBCR9, 2, 0), /* SPIBSC1 */
 	[MSTP74] = SH_CLK_MSTP8(&peripheral1_clk, STBCR7, 4, 0), /* Ether */
 	[MSTP60] = SH_CLK_MSTP8(&r_clk, STBCR6, 0, 0), /* RTC */
 	[MSTP47] = SH_CLK_MSTP8(&peripheral1_clk, STBCR4, 7, 0), /* SCIF0 */
@@ -198,6 +201,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("rspi.2", &mstp_clks[MSTP105]),
 	CLKDEV_DEV_ID("rspi.3", &mstp_clks[MSTP104]),
 	CLKDEV_DEV_ID("rspi.4", &mstp_clks[MSTP103]),
+	CLKDEV_DEV_ID("spibsc.0", &mstp_clks[MSTP93]),
+	CLKDEV_DEV_ID("spibsc.1", &mstp_clks[MSTP92]),
 	CLKDEV_DEV_ID("i2c-riic.0", &mstp_clks[MSTP97]),
 	CLKDEV_DEV_ID("i2c-riic.1", &mstp_clks[MSTP96]),
 	CLKDEV_DEV_ID("i2c-riic.2", &mstp_clks[MSTP95]),
