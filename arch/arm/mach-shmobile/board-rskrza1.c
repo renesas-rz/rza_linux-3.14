@@ -27,6 +27,8 @@
 #include <mach/r7s72100.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <linux/spi/rspi.h>
+#include <linux/spi/spi.h>
 #include <linux/i2c-riic.h>
 
 /* Ether */
@@ -181,6 +183,31 @@ static const struct platform_device_info rtc_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* RSPI */
+#define RSPI_RESOURCE(idx, baseaddr, irq)				\
+static const struct resource rspi##idx##_resources[] __initconst = {	\
+	DEFINE_RES_MEM(baseaddr, 0x24),					\
+	DEFINE_RES_IRQ_NAMED(irq, "error"),				\
+	DEFINE_RES_IRQ_NAMED(irq + 1, "rx"),				\
+	DEFINE_RES_IRQ_NAMED(irq + 2, "tx"),				\
+}
+
+RSPI_RESOURCE(0, 0xe800c800, gic_iid(270));
+RSPI_RESOURCE(1, 0xe800d000, gic_iid(273));
+RSPI_RESOURCE(2, 0xe800d800, gic_iid(276));
+RSPI_RESOURCE(3, 0xe800e000, gic_iid(279));
+RSPI_RESOURCE(4, 0xe800e800, gic_iid(282));
+
+static const struct rspi_plat_data rspi_pdata __initconst = {
+	.num_chipselect	= 1,
+};
+
+#define r7s72100_register_rspi(idx)					   \
+	platform_device_register_resndata(&platform_bus, "rspi", idx,   \
+					rspi##idx##_resources,		   \
+					ARRAY_SIZE(rspi##idx##_resources), \
+					&rspi_pdata, sizeof(rspi_pdata))
+
 static void __init rskrza1_add_standard_devices(void)
 {
 	r7s72100_clock_init();
@@ -193,6 +220,11 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&riic3_info);
 	platform_device_register_full(&rtc_info);
 
+	r7s72100_register_rspi(0);
+	r7s72100_register_rspi(1);
+	r7s72100_register_rspi(2);
+	r7s72100_register_rspi(3);
+	r7s72100_register_rspi(4);
 }
 
 static const char * const rskrza1_boards_compat_dt[] __initconst = {
