@@ -28,6 +28,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <linux/spi/rspi.h>
+#include <linux/spi/sh_spibsc.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c-riic.h>
 
@@ -208,6 +209,42 @@ static const struct rspi_plat_data rspi_pdata __initconst = {
 					ARRAY_SIZE(rspi##idx##_resources), \
 					&rspi_pdata, sizeof(rspi_pdata))
 
+/* spibsc0 */
+static const struct sh_spibsc_info spibsc0_pdata __initconst = {
+	.bus_num	= 5,
+};
+
+static const struct resource spibsc0_resources[] __initconst = {
+	DEFINE_RES_MEM(0x3fefa000, 0x100),
+};
+
+static const struct platform_device_info spibsc0_info __initconst = {
+	.name		= "spibsc",
+	.id		= 0,
+	.data 		= &spibsc0_pdata,
+	.size_data	= sizeof(spibsc0_pdata),
+	.num_res	= ARRAY_SIZE(spibsc0_resources),
+	.res		= spibsc0_resources,
+};
+
+/* spibsc1 */
+static const struct sh_spibsc_info spibsc1_pdata __initconst = {
+	.bus_num	= 6,
+};
+
+static const struct resource spibsc1_resources[] __initconst = {
+	DEFINE_RES_MEM(0x3fefb000, 0x100),
+};
+
+static const struct platform_device_info spibsc1_info __initconst = {
+	.name		= "spibsc",
+	.id		= 1,
+	.data 		= &spibsc1_pdata,
+	.size_data	= sizeof(spibsc1_pdata),
+	.num_res	= ARRAY_SIZE(spibsc1_resources),
+	.res		= spibsc1_resources,
+};
+
 static void __init rskrza1_add_standard_devices(void)
 {
 	r7s72100_clock_init();
@@ -219,6 +256,8 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&riic2_info);
 	platform_device_register_full(&riic3_info);
 	platform_device_register_full(&rtc_info);
+	platform_device_register_full(&spibsc0_info);
+	platform_device_register_full(&spibsc1_info);
 
 	r7s72100_register_rspi(0);
 	r7s72100_register_rspi(1);
