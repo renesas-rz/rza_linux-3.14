@@ -184,6 +184,21 @@ static const struct platform_device_info rtc_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* PWM */
+static const struct resource pwm_resources[] __initconst = {
+	DEFINE_RES_MEM(0xfcff0200, 0x4c),	/* mtu2_3,4 */
+	DEFINE_RES_MEM(0xfcff0280, 0x6),	/* mtu2 share regs */
+};
+
+static const struct platform_device_info pwm0_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "rza1-pwm",
+	.id		= 0,
+	.res		= pwm_resources,
+	.num_res	= ARRAY_SIZE(pwm_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
 /* RSPI */
 #define RSPI_RESOURCE(idx, baseaddr, irq)				\
 static const struct resource rspi##idx##_resources[] __initconst = {	\
@@ -256,6 +271,7 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&riic2_info);
 	platform_device_register_full(&riic3_info);
 	platform_device_register_full(&rtc_info);
+	platform_device_register_full(&pwm0_info);
 	platform_device_register_full(&spibsc0_info);
 	platform_device_register_full(&spibsc1_info);
 
