@@ -164,6 +164,23 @@ static const struct platform_device_info riic3_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* RTC */
+static const struct resource rtc_resources[] __initconst = {
+	DEFINE_RES_MEM(0xfcff1000, 0x2d),
+	DEFINE_RES_IRQ(gic_iid(309)),	/* Period IRQ */
+	DEFINE_RES_IRQ(gic_iid(310)),	/* Carry IRQ */
+	DEFINE_RES_IRQ(gic_iid(308)),	/* Alarm IRQ */
+};
+
+static const struct platform_device_info rtc_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "sh-rtc",
+	.id		= -1,
+	.res		= rtc_resources,
+	.num_res	= ARRAY_SIZE(rtc_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
 static void __init rskrza1_add_standard_devices(void)
 {
 	r7s72100_clock_init();
@@ -174,6 +191,7 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&riic1_info);
 	platform_device_register_full(&riic2_info);
 	platform_device_register_full(&riic3_info);
+	platform_device_register_full(&rtc_info);
 
 }
 
