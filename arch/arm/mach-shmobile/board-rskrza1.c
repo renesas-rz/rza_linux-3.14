@@ -31,6 +31,9 @@
 #include <linux/spi/sh_spibsc.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c-riic.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 
 /* Ether */
 static const struct sh_eth_plat_data ether_pdata __initconst = {
@@ -184,6 +187,57 @@ static const struct platform_device_info rtc_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* NOR Flash */
+static struct mtd_partition nor_flash_partitions[] __initdata = {
+	{
+		.name		= "u-boot",
+		.offset		= 0x00000000,
+		.size		= SZ_512K,
+		.mask_flags	= MTD_WRITEABLE,
+	},
+	{
+		.name		= "u-boot_env",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_256K,
+	},
+	{
+		.name		= "dtb",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_256K,
+	},
+	{
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_4M,
+	},
+	{
+		.name		= "data",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
+
+static const struct physmap_flash_data nor_flash_data __initconst = {
+	.width		= 2,
+	.parts		= nor_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(nor_flash_partitions),
+};
+
+static const struct resource nor_flash_resources[] __initconst = {
+	DEFINE_RES_MEM(0x00000000, SZ_64M),
+};
+
+static const struct platform_device_info nor_flash_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "physmap-flash",
+	.id		= -1,
+	.res		= nor_flash_resources,
+	.num_res	= ARRAY_SIZE(nor_flash_resources),
+	.data		= &nor_flash_data,
+	.size_data	= sizeof(nor_flash_data),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
 /* PWM */
 static const struct resource pwm_resources[] __initconst = {
 	DEFINE_RES_MEM(0xfcff0200, 0x4c),	/* mtu2_3,4 */
@@ -271,6 +325,7 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&riic2_info);
 	platform_device_register_full(&riic3_info);
 	platform_device_register_full(&rtc_info);
+	platform_device_register_full(&nor_flash_info);
 	platform_device_register_full(&pwm0_info);
 	platform_device_register_full(&spibsc0_info);
 	platform_device_register_full(&spibsc1_info);
