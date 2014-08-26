@@ -28,6 +28,7 @@
 /* Standby Control Registers */
 #define STBCR3		0xfcfe0420
 #define STBCR4		0xfcfe0424
+#define STBCR6		0xfcfe042c
 #define STBCR7		0xfcfe0430
 #define STBCR9		0xfcfe0438
 #define STBCR10		0xfcfe043c
@@ -42,6 +43,7 @@ static struct clk_mapping cpg_mapping = {
 /* Fixed 32 KHz root clock for RTC */
 static struct clk r_clk = {
 	.rate           = 32768,
+	.mapping	= &cpg_mapping,
 };
 
 /*
@@ -152,6 +154,7 @@ enum {
 	MSTP107, MSTP106, MSTP105, MSTP104, MSTP103,
 	MSTP97, MSTP96, MSTP95, MSTP94,
 	MSTP74,
+	MSTP60,
 	MSTP47, MSTP46, MSTP45, MSTP44, MSTP43, MSTP42, MSTP41, MSTP40,
 	MSTP33,	MSTP_NR
 };
@@ -167,6 +170,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP95] = SH_CLK_MSTP8(&peripheral0_clk, STBCR9, 5, 0), /* RIIC2 */
 	[MSTP94] = SH_CLK_MSTP8(&peripheral0_clk, STBCR9, 4, 0), /* RIIC3 */
 	[MSTP74] = SH_CLK_MSTP8(&peripheral1_clk, STBCR7, 4, 0), /* Ether */
+	[MSTP60] = SH_CLK_MSTP8(&r_clk, STBCR6, 0, 0), /* RTC */
 	[MSTP47] = SH_CLK_MSTP8(&peripheral1_clk, STBCR4, 7, 0), /* SCIF0 */
 	[MSTP46] = SH_CLK_MSTP8(&peripheral1_clk, STBCR4, 6, 0), /* SCIF1 */
 	[MSTP45] = SH_CLK_MSTP8(&peripheral1_clk, STBCR4, 5, 0), /* SCIF2 */
@@ -204,6 +208,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("i2c-riic.2", &mstp_clks[MSTP95]),
 	CLKDEV_DEV_ID("i2c-riic.3", &mstp_clks[MSTP94]),
 	CLKDEV_DEV_ID("r7s72100-ether", &mstp_clks[MSTP74]),
+	CLKDEV_DEV_ID("rtc.0", &mstp_clks[MSTP60]),
 	CLKDEV_CON_ID("mtu2_fck", &mstp_clks[MSTP33]),
 
 	/* ICK */
