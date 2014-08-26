@@ -34,6 +34,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/platform_data/sh_adc.h>
 
 /* Ether */
 static const struct sh_eth_plat_data ether_pdata __initconst = {
@@ -314,6 +315,31 @@ static const struct platform_device_info spibsc1_info __initconst = {
 	.res		= spibsc1_resources,
 };
 
+/* ADC */
+static const struct resource adc0_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe8005800, 0x100),
+	DEFINE_RES_MEM(0xfcff0280, 0x6),
+	DEFINE_RES_MEM(0xfcff0380, 0x21),
+	DEFINE_RES_IRQ(gic_iid(170)),
+	DEFINE_RES_IRQ(gic_iid(171)),
+	DEFINE_RES_IRQ(gic_iid(146)),
+};
+
+static const struct sh_adc_data adc0_pdata __initconst = {
+	.num_channels = 8,
+	.mtu2_ch = 1,
+};
+
+static const struct platform_device_info adc0_info __initconst = {
+	.name	= "sh_adc",
+	.id	= 0,
+	.data		= &adc0_pdata,
+	.size_data	= sizeof(adc0_pdata),
+	.res		= adc0_resources,
+	.num_res	= ARRAY_SIZE(adc0_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
 static void __init rskrza1_add_standard_devices(void)
 {
 	r7s72100_clock_init();
@@ -329,6 +355,7 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&pwm0_info);
 	platform_device_register_full(&spibsc0_info);
 	platform_device_register_full(&spibsc1_info);
+	platform_device_register_full(&adc0_info);
 
 	r7s72100_register_rspi(0);
 	r7s72100_register_rspi(1);
