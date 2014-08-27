@@ -35,6 +35,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_data/sh_adc.h>
+#include <linux/usb/r8a66597.h>
 
 /* Ether */
 static const struct sh_eth_plat_data ether_pdata __initconst = {
@@ -340,6 +341,41 @@ static const struct platform_device_info adc0_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* USB Host */
+static const struct r8a66597_platdata r8a66597_pdata __initconst = {
+	.endian = 0,
+	.on_chip = 1,
+	.xtal = R8A66597_PLATDATA_XTAL_48MHZ,
+};
+
+static const struct resource r8a66597_usb_host0_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe8010000, 0x1a0),
+	DEFINE_RES_IRQ(gic_iid(73)),
+};
+
+static const struct platform_device_info r8a66597_usb_host0_info __initconst= {
+	.name		= "r8a66597_hcd",
+	.id		= 0,
+	.data		= &r8a66597_pdata,
+	.size_data	= sizeof(r8a66597_pdata),
+	.res		= r8a66597_usb_host0_resources,
+	.num_res	= ARRAY_SIZE(r8a66597_usb_host0_resources),
+};
+
+static const struct resource r8a66597_usb_host1_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe8207000, 0x1a0),
+	DEFINE_RES_IRQ(gic_iid(74)),
+};
+
+static const struct platform_device_info r8a66597_usb_host1_info __initconst = {
+	.name		= "r8a66597_hcd",
+	.id		= 1,
+	.data		= &r8a66597_pdata,
+	.size_data	= sizeof(r8a66597_pdata),
+	.res		= r8a66597_usb_host1_resources,
+	.num_res	= ARRAY_SIZE(r8a66597_usb_host1_resources),
+};
+
 static void __init rskrza1_add_standard_devices(void)
 {
 	r7s72100_clock_init();
@@ -356,6 +392,8 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&spibsc0_info);
 	platform_device_register_full(&spibsc1_info);
 	platform_device_register_full(&adc0_info);
+	platform_device_register_full(&r8a66597_usb_host0_info);
+	platform_device_register_full(&r8a66597_usb_host1_info);
 
 	r7s72100_register_rspi(0);
 	r7s72100_register_rspi(1);
