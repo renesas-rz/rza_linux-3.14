@@ -76,7 +76,7 @@ static const struct resource riic0_resources[] __initconst = {
 };
 
 static const struct riic_platform_data riic0_pdata __initconst = {
-	.bus_rate = 100000,
+	.bus_rate = 100,
 };
 
 static const struct platform_device_info riic0_info __initconst = {
@@ -104,7 +104,7 @@ static const struct resource riic1_resources[] __initconst = {
 };
 
 static const struct riic_platform_data riic1_pdata __initconst = {
-	.bus_rate = 100000,
+	.bus_rate = 100,
 };
 
 static const struct platform_device_info riic1_info __initconst = {
@@ -131,7 +131,7 @@ static const struct resource riic2_resources[] __initconst = {
 };
 
 static const struct riic_platform_data riic2_pdata __initconst = {
-	.bus_rate = 100000,
+	.bus_rate = 100,
 };
 
 static const struct platform_device_info riic2_info __initconst = {
@@ -158,7 +158,7 @@ static const struct resource riic3_resources[] __initconst = {
 };
 
 static const struct riic_platform_data riic3_pdata __initconst = {
-	.bus_rate = 100000,
+	.bus_rate = 100,
 };
 
 static const struct platform_device_info riic3_info __initconst = {
