@@ -30,8 +30,10 @@
 #define STBCR4		0xfcfe0424
 #define STBCR6		0xfcfe042c
 #define STBCR7		0xfcfe0430
+#define STBCR8		0xfcfe0434
 #define STBCR9		0xfcfe0438
 #define STBCR10		0xfcfe043c
+#define STBCR12		0xfcfe0444
 
 #define PLL_RATE 30
 
@@ -151,10 +153,11 @@ struct clk div4_clks[DIV4_NR] = {
 };
 
 enum {
+	MSTP123, MSTP122, MSTP121, MSTP120,
 	MSTP107, MSTP106, MSTP105, MSTP104, MSTP103,
 	MSTP97, MSTP96, MSTP95, MSTP94,
 	MSTP92, MSTP93,
-	MSTP74,
+	MSTP84, MSTP74,
 	MSTP71, MSTP70,
 	MSTP67, MSTP60,
 	MSTP47, MSTP46, MSTP45, MSTP44, MSTP43, MSTP42, MSTP41, MSTP40,
@@ -162,6 +165,12 @@ enum {
 };
 
 static struct clk mstp_clks[MSTP_NR] = {
+	[MSTP123] = SH_CLK_MSTP8(&peripheral1_clk, STBCR12, 3, 0), /* SDHI00 */
+	[MSTP122] = SH_CLK_MSTP8(&peripheral1_clk, STBCR12, 2,
+			CLK_ENABLE_ON_INIT),			   /* SDHI01 */
+	[MSTP121] = SH_CLK_MSTP8(&peripheral1_clk, STBCR12, 1, 0), /* SDHI10 */
+	[MSTP120] = SH_CLK_MSTP8(&peripheral1_clk, STBCR12, 0,
+			CLK_ENABLE_ON_INIT),			   /* SDHI11 */
 	[MSTP107] = SH_CLK_MSTP8(&peripheral1_clk, STBCR10, 7, 0), /* RSPI0 */
 	[MSTP106] = SH_CLK_MSTP8(&peripheral1_clk, STBCR10, 6, 0), /* RSPI1 */
 	[MSTP105] = SH_CLK_MSTP8(&peripheral1_clk, STBCR10, 5, 0), /* RSPI2 */
@@ -173,6 +182,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP94] = SH_CLK_MSTP8(&peripheral0_clk, STBCR9, 4, 0), /* RIIC3 */
 	[MSTP93] = SH_CLK_MSTP8(&bus_clk, STBCR9, 3, 0), /* SPIBSC0 */
 	[MSTP92] = SH_CLK_MSTP8(&bus_clk, STBCR9, 2, 0), /* SPIBSC1 */
+	[MSTP84] = SH_CLK_MSTP8(&peripheral1_clk, STBCR8, 4, 0),   /* MMC */
 	[MSTP74] = SH_CLK_MSTP8(&peripheral1_clk, STBCR7, 4, 0), /* Ether */
 	[MSTP71] = SH_CLK_MSTP8(&peripheral1_clk, STBCR7, 1, 0), /* USB0 */
 	[MSTP70] = SH_CLK_MSTP8(&peripheral1_clk, STBCR7, 0, 0), /* USB1 */
@@ -200,6 +210,9 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("cpu_clk", &div4_clks[DIV4_I]),
 
 	/* MSTP clocks */
+	CLKDEV_DEV_ID("sh_mmcif", &mstp_clks[MSTP84]),
+	CLKDEV_DEV_ID("sh_mobile_sdhi.0", &mstp_clks[MSTP123]),
+	CLKDEV_DEV_ID("sh_mobile_sdhi.1", &mstp_clks[MSTP121]),
 	CLKDEV_DEV_ID("rspi.0", &mstp_clks[MSTP107]),
 	CLKDEV_DEV_ID("rspi.1", &mstp_clks[MSTP106]),
 	CLKDEV_DEV_ID("rspi.2", &mstp_clks[MSTP105]),
