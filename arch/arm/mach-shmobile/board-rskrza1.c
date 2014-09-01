@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/sh_eth.h>
+#include <asm/mach/map.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r7s72100.h>
@@ -37,6 +38,24 @@
 #include <linux/platform_data/sh_adc.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/platform_data/dma-rza1.h>
+
+static struct map_desc rza1_io_desc[] __initdata = {
+	/* create a 1:1 entity map for 0xfcfexxxx
+	 * used by MSTP, CPG.
+	 */
+	{
+		.virtual	= 0xfcfe0000,
+		.pfn		= __phys_to_pfn(0xfcfe0000),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE_NONSHARED
+	},
+};
+
+void __init rza1_map_io(void)
+{
+	iotable_init(rza1_io_desc, ARRAY_SIZE(rza1_io_desc));
+}
+
 
 /* DMA */
 #define CHCFG(reqd_v, loen_v, hien_v, lvl_v, am_v, sds_v, dds_v, tm_v)\
@@ -495,6 +514,7 @@ static const struct platform_device_info r8a66597_usb_host1_info __initconst = {
 static void __init rskrza1_add_standard_devices(void)
 {
 	r7s72100_clock_init();
+	r7s72100_pinmux_setup();
 	r7s72100_add_dt_devices();
 
 	platform_device_register_full(&dma_info);
@@ -528,4 +548,5 @@ DT_MACHINE_START(RSKRZA1_DT, "rskrza1")
 	.init_early	= r7s72100_init_early,
 	.init_machine	= rskrza1_add_standard_devices,
 	.dt_compat	= rskrza1_boards_compat_dt,
+	.map_io		= rza1_map_io,
 MACHINE_END

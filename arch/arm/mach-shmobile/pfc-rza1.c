@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
-#include <mach/rza1.h>
+#include <mach/r7s72100.h>
 
 #define GPIO_CHIP_NAME "RZA1_INTERNAL_PFC"
 
@@ -207,7 +207,7 @@ static struct gpio_chip chip = {
 	.direction_output = chip_direction_output,
 };
 
-int rza1_pinmux_setup(void)
+int r7s72100_pinmux_setup(void)
 {
 	int retval;
 	mutex_init(&mutex);
@@ -231,7 +231,7 @@ static int set_mode(unsigned int port, int bit, int mode)
  * @dir:    Kind of I/O mode and data direction and PBDC and Output Level.
  *          PIPC enable SoC IP to control a direction.
  */
-int rza1_pfc_pin_assign(enum pfc_pin_number pinnum, enum pfc_mode mode,
+int r7s72100_pfc_pin_assign(enum pfc_pin_number pinnum, enum pfc_mode mode,
 			enum pfc_direction dir)
 {
 	int port, bit = (int)pinnum;
@@ -310,4 +310,4 @@ int rza1_pfc_pin_assign(enum pfc_pin_number pinnum, enum pfc_mode mode,
 
 	return 0;
 }
-EXPORT_SYMBOL(rza1_pfc_pin_assign);
+EXPORT_SYMBOL(r7s72100_pfc_pin_assign);
