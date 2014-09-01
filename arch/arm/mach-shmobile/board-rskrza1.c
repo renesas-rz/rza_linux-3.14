@@ -36,6 +36,122 @@
 #include <linux/mtd/physmap.h>
 #include <linux/platform_data/sh_adc.h>
 #include <linux/usb/r8a66597.h>
+#include <linux/platform_data/dma-rza1.h>
+
+/* DMA */
+#define CHCFG(reqd_v, loen_v, hien_v, lvl_v, am_v, sds_v, dds_v, tm_v)\
+	{								\
+		.reqd	=	reqd_v,					\
+		.loen	=	loen_v,					\
+		.hien	=	hien_v,					\
+		.lvl	=	lvl_v,					\
+		.am	=	am_v,					\
+		.sds	=	sds_v,					\
+		.dds	=	dds_v,					\
+		.tm	=	tm_v,					\
+	}
+#define DMARS(rid_v, mid_v)	\
+	{								\
+		.rid	= rid_v,					\
+		.mid	= mid_v,					\
+	}
+
+static const struct rza1_dma_slave_config rza1_dma_slaves[] = {
+	{
+		.slave_id	= RZA1DMA_SLAVE_SDHI0_TX,
+		.addr		= 0xe804e030,
+		.chcfg		= CHCFG(0x1, 0x0, 0x1, 0x1, 0x1, 0x2, 0x2, 0x0),
+		.dmars		= DMARS(0x1, 0x30),
+	},
+	{
+		.slave_id	= RZA1DMA_SLAVE_SDHI0_RX,
+		.addr		= 0xe804e030,
+		.chcfg		= CHCFG(0x0, 0x0, 0x1, 0x1, 0x1, 0x2, 0x2, 0x0),
+		.dmars		= DMARS(0x2, 0x30),
+	},
+	{
+		.slave_id	= RZA1DMA_SLAVE_SDHI1_TX,
+		.addr		= 0xe804e830,
+		.chcfg		= CHCFG(0x1, 0x0, 0x1, 0x1, 0x1, 0x2, 0x2, 0x0),
+		.dmars		= DMARS(0x1, 0x31),
+	},
+	{
+		.slave_id	= RZA1DMA_SLAVE_SDHI1_RX,
+		.addr		= 0xe804e830,
+		.chcfg		= CHCFG(0x0, 0x0, 0x1, 0x1, 0x1, 0x2, 0x2, 0x0),
+		.dmars		= DMARS(0x2, 0x31),
+	},
+	{
+		.slave_id	= RZA1DMA_SLAVE_MMCIF_TX,
+		.addr		= 0xe804c834,
+		.chcfg		= CHCFG(0x1, 0x0, 0x1, 0x1, 0x1, 0x2, 0x2, 0x0),
+		.dmars		= DMARS(0x1, 0x32),
+	},
+	{
+		.slave_id	= RZA1DMA_SLAVE_MMCIF_RX,
+		.addr		= 0xe804c834,
+		.chcfg		= CHCFG(0x0, 0x0, 0x1, 0x1, 0x1, 0x2, 0x2, 0x0),
+		.dmars		= DMARS(0x2, 0x32),
+	},
+	{
+		.slave_id	= RZA1DMA_SLAVE_PCM_MEM_SSI0,
+		.addr		= 0xe820b018,		/* SSIFTDR_0 */
+		.chcfg		= CHCFG(0x1, 0x0, 0x1, 0x1, 0x1, 0x2, 0x2, 0x0),
+		.dmars		= DMARS(0x1, 0x38),
+	}, {
+		.slave_id	= RZA1DMA_SLAVE_PCM_MEM_SRC1,
+		.addr		= 0xe820970c,		/* DMATD1_CIM */
+		.chcfg		= CHCFG(0x1, 0x0, 0x1, 0x1, 0x1, 0x1, 0x1, 0x0),
+		.dmars		= DMARS(0x1, 0x41),
+	}, {
+		.slave_id	= RZA1DMA_SLAVE_PCM_SSI0_MEM,
+		.addr		= 0xe820b01c,		/* SSIFRDR_0 */
+		.chcfg		= CHCFG(0x0, 0x0, 0x1, 0x1, 0x1, 0x2, 0x2, 0x0),
+		.dmars		= DMARS(0x2, 0x38),
+	}, {
+		.slave_id	= RZA1DMA_SLAVE_PCM_SRC0_MEM,
+		.addr		= 0xe8209718,		/* DMATU0_CIM */
+		.chcfg		= CHCFG(0x0, 0x0, 0x1, 0x1, 0x1, 0x1, 0x1, 0x0),
+		.dmars		= DMARS(0x2, 0x40),
+	},
+};
+
+static struct rza1_dma_pdata dma_pdata = {
+	.slave		= rza1_dma_slaves,
+	.slave_num	= ARRAY_SIZE(rza1_dma_slaves),
+	.channel_num	= 16,
+};
+
+static struct resource rza1_dma_resources[] = {
+	DEFINE_RES_MEM(0xe8200000, 0x1000),
+	DEFINE_RES_MEM(0xfcfe1000, 0x1000),
+	DEFINE_RES_IRQ(gic_iid(41)),
+	DEFINE_RES_IRQ(gic_iid(42)),
+	DEFINE_RES_IRQ(gic_iid(43)),
+	DEFINE_RES_IRQ(gic_iid(44)),
+	DEFINE_RES_IRQ(gic_iid(45)),
+	DEFINE_RES_IRQ(gic_iid(46)),
+	DEFINE_RES_IRQ(gic_iid(47)),
+	DEFINE_RES_IRQ(gic_iid(48)),
+	DEFINE_RES_IRQ(gic_iid(49)),
+	DEFINE_RES_IRQ(gic_iid(50)),
+	DEFINE_RES_IRQ(gic_iid(51)),
+	DEFINE_RES_IRQ(gic_iid(52)),
+	DEFINE_RES_IRQ(gic_iid(53)),
+	DEFINE_RES_IRQ(gic_iid(54)),
+	DEFINE_RES_IRQ(gic_iid(55)),
+	DEFINE_RES_IRQ(gic_iid(56)),
+	DEFINE_RES_IRQ(gic_iid(57)),
+};
+
+static struct platform_device_info dma_info = {
+	.name		= "rza1-dma",
+	.id		= -1,
+	.res		= rza1_dma_resources,
+	.num_res	= ARRAY_SIZE(rza1_dma_resources),
+	.data		= &dma_pdata,
+	.size_data	= sizeof(dma_pdata),
+};
 
 /* Ether */
 static const struct sh_eth_plat_data ether_pdata __initconst = {
@@ -381,6 +497,7 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_clock_init();
 	r7s72100_add_dt_devices();
 
+	platform_device_register_full(&dma_info);
 	platform_device_register_full(&ether_info);
 	platform_device_register_full(&riic0_info);
 	platform_device_register_full(&riic1_info);
