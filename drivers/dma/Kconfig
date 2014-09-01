@@ -171,6 +171,14 @@ config S3C24XX_DMAC
 
 source "drivers/dma/sh/Kconfig"
 
+config RZA1_DMAE
+	tristate "Renesas RZA1 DMAC support"
+	depends on ARCH_R7S72100
+	depends on !SH_DMA_API
+	select DMA_ENGINE
+	help
+	  Enable support for the Renesas RZA1 DMA controllers.
+
 config COH901318
 	bool "ST-Ericsson COH901318 DMA support"
 	select DMA_ENGINE
