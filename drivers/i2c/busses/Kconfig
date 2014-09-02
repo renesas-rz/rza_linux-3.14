@@ -660,7 +660,7 @@ config I2C_RIIC
 
 config I2C_RIIC_RZA1
 	tristate "Renesas RIIC adapter (Alternate for RZA1)"
-	depends on CONFIG_ARCH_R7S72100
+	depends on ARCH_R7S72100
 	help
 	  If you say yes to this option, support will be included for the
 	  Renesas RIIC I2C interface.
