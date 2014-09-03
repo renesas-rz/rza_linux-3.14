@@ -39,6 +39,7 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/platform_data/dma-rza1.h>
 #include <linux/uio_driver.h>
+#include <video/vdc5fb.h>
 
 static int usbgs = -1;
 static int __init early_usbgs(char *str)
@@ -180,6 +181,138 @@ static const struct platform_device_info dma_info  __initconst = {
 	.num_res	= ARRAY_SIZE(rza1_dma_resources),
 	.data		= &dma_pdata,
 	.size_data	= sizeof(dma_pdata),
+};
+
+/* Video */
+#define	P1CLK			((13330000 * 30) / 6)
+#define	PIXCLOCK(hz, div)	\
+	(u32)(1000000000000 / ((double)(hz) / (double)(div)))
+
+struct pfc_pinmux_assign {
+	int port;	/* enum */
+	int mode;	/* enum */
+	int opts;
+};
+
+static struct pfc_pinmux_assign lcd0_common[] = {
+	{ P11_15, ALT5, },	/* LCD0_CLK */
+	{ P11_7,  ALT5, },	/* LCD0_DATA0 */
+	{ P11_6,  ALT5, },	/* LCD0_DATA1 */
+	{ P11_5,  ALT5, },	/* LCD0_DATA2 */
+	{ P11_4,  ALT5, },	/* LCD0_DATA3 */
+	{ P11_3,  ALT5, },	/* LCD0_DATA4 */
+	{ P11_2,  ALT5, },	/* LCD0_DATA5 */
+	{ P11_1,  ALT5, },	/* LCD0_DATA6 */
+	{ P11_0,  ALT5, },	/* LCD0_DATA7 */
+	{ P10_15, ALT5, },	/* LCD0_DATA8 */
+	{ P10_14, ALT5, },	/* LCD0_DATA9 */
+	{ P10_13, ALT5, },	/* LCD0_DATA10 */
+	{ P10_12, ALT5, },	/* LCD0_DATA11 */
+	{ P10_11, ALT5, },	/* LCD0_DATA12 */
+	{ P10_10, ALT5, },	/* LCD0_DATA13 */
+	{ P10_9,  ALT5, },	/* LCD0_DATA14 */
+	{ P10_8,  ALT5, },	/* LCD0_DATA15 */
+	{ P10_7,  ALT5, },	/* LCD0_DATA16 */
+	{ P10_6,  ALT5, },	/* LCD0_DATA17 */
+	{ P10_5,  ALT5, },	/* LCD0_DATA18 */
+	{ P10_4,  ALT5, },	/* LCD0_DATA19 */
+	{ P10_3,  ALT5, },	/* LCD0_DATA20 */
+	{ P10_2,  ALT5, },	/* LCD0_DATA21 */
+	{ P10_1,  ALT5, },	/* LCD0_DATA22 */
+	{ P10_0,  ALT5, },	/* LCD0_DATA23 */
+};
+
+static struct pfc_pinmux_assign lcd0_tcon[] = {
+	{ P11_14, ALT5, },	/* LCD0_TCON0 */
+	{ P11_13, ALT5, },	/* LCD0_TCON1 */
+	{ P11_12, ALT5, },	/* LCD0_TCON2 */
+	{ P11_11, ALT5, },	/* LCD0_TCON3 */
+	{ P11_10, ALT5, },	/* LCD0_TCON4 */
+	{ P11_9,  ALT5, },	/* LCD0_TCON5 */
+	{ P11_8,  ALT5, },	/* LCD0_TCON6 */
+};
+
+static void vdc5fb_pinmux(struct pfc_pinmux_assign *pf, size_t num)
+{
+	size_t n;
+
+	for (n = 0; n < num; pf++, n++)
+		r7s72100_pfc_pin_assign(pf->port, pf->mode, DIIO_PBDC_DIS);
+}
+
+static void vdc5fb_pinmux_tcon(struct pfc_pinmux_assign *pf, size_t num,
+	struct vdc5fb_pdata *pdata)
+{
+	size_t n;
+
+	for (n = 0; n < num; pf++, n++)
+		if (pdata->tcon_sel[n] != TCON_SEL_UNUSED)
+			r7s72100_pfc_pin_assign(pf->port, pf->mode, DIIO_PBDC_DIS);
+}
+
+static const struct resource vdc5fb_resources[VDC5FB_NUM_RES] __initconst = {
+	[0] = DEFINE_RES_MEM_NAMED(0xfcff6000, 0x00002000, "vdc5fb.0: reg"),
+	[1] = DEFINE_RES_MEM_NAMED(0x60200000, 0x00400000, "vdc5fb.0: fb"),
+	[2] = DEFINE_RES_NAMED(75, 23, "vdc5fb.0: irq", IORESOURCE_IRQ),
+};
+
+static int vdc5fb_pinmux_gwp0700cnwv04(struct platform_device *pdev)
+{
+	struct vdc5fb_pdata *pdata
+	    = (struct vdc5fb_pdata *)pdev->dev.platform_data;
+
+	vdc5fb_pinmux(lcd0_common, ARRAY_SIZE(lcd0_common));
+	vdc5fb_pinmux_tcon(lcd0_tcon, ARRAY_SIZE(lcd0_tcon), pdata);
+
+	return 0;
+}
+
+static struct fb_videomode videomode_gwp0700cnwv04 __initdata = {
+	.name		= "gwp0700cnwv04",
+	.refresh	= 60,
+	.xres		= 800,
+	.yres		= 480,
+	.pixclock	= PIXCLOCK(P1CLK, 2),
+	.left_margin	= 210,
+	.right_margin	= 46,
+	.upper_margin	= 22,
+	.lower_margin	= 23,
+	.hsync_len	= 40,
+	.vsync_len	= 20,
+	.sync		= 0,
+	.vmode		= 0,
+	.flag		= 0,
+};
+
+static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata __initconst = {
+	.name			= "gwp0700cnwv04",
+	.videomode		= &videomode_gwp0700cnwv04,
+	.panel_icksel		= ICKSEL_P1CLK,
+	.bpp			= 32,
+	.panel_width		= 154,	/* mm, unused */
+	.panel_height		= 86,	/* mm, unused */
+	.flm_max		= 1,
+	.out_format		= OUT_FORMAT_RGB888,
+	.use_lvds		= 0,
+	.tcon_sel		= {
+		[LCD_TCON0]	= TCON_SEL_UNUSED,	/* MODE */
+		[LCD_TCON1]	= TCON_SEL_UNUSED,	/* DITH */
+		[LCD_TCON2]	= TCON_SEL_DE,		/* RGB_EN */
+		[LCD_TCON3]	= TCON_SEL_STH,		/* RGB_HSYNC */
+		[LCD_TCON4]	= TCON_SEL_STVA,	/* RGB_VSYNC */
+		[LCD_TCON5]	= TCON_SEL_UNUSED,	/* LR_INV */
+		[LCD_TCON6]	= TCON_SEL_UNUSED,	/* UD_INV */
+	},
+	.pinmux			= vdc5fb_pinmux_gwp0700cnwv04,
+};
+
+static const struct platform_device_info vdc5fb_info __initconst = {
+	.name		= "vdc5fb",
+	.id		= 0,
+	.res		= vdc5fb_resources,
+	.num_res	= ARRAY_SIZE(vdc5fb_resources),
+	.data		= &vdc5fb_gwp0700cnwv04_pdata,
+	.size_data	= sizeof(vdc5fb_gwp0700cnwv04_pdata),
 };
 
 /* JCU */
@@ -605,6 +738,7 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&spibsc0_info);
 	platform_device_register_full(&spibsc1_info);
 	platform_device_register_full(&adc0_info);
+	platform_device_register_full(&vdc5fb_info);
 
 	if (usbgs == 0) {
 		platform_device_register_full(&r8a66597_usb_gadget0_info);
