@@ -38,6 +38,7 @@
 #include <linux/platform_data/sh_adc.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/platform_data/dma-rza1.h>
+#include <linux/uio_driver.h>
 
 static struct map_desc rza1_io_desc[] __initdata = {
 	/* create a 1:1 entity map for 0xfcfexxxx
@@ -170,6 +171,28 @@ static struct platform_device_info dma_info = {
 	.num_res	= ARRAY_SIZE(rza1_dma_resources),
 	.data		= &dma_pdata,
 	.size_data	= sizeof(dma_pdata),
+};
+
+/* JCU */
+static const struct uio_info jcu_platform_pdata __initconst = {
+	.name = "JCU",
+	.version = "0",
+	.irq = 126, /* Not used */
+};
+
+static const struct resource jcu_resources[] __initconst = {
+	DEFINE_RES_MEM_NAMED(0xe8017000, 0x3d2, "jcu:reg"), /* for JCU of RZ */
+	DEFINE_RES_MEM_NAMED(0xfcfe0000, 0x2000, "jcu:rstreg clkreg"), /* Use STBCR6 & SWRSTCR2 */
+	DEFINE_RES_MEM_NAMED(0x60900000, 0x100000, "jcu:iram"), /* (Non cacheable 1MB) */
+};
+
+static const struct platform_device_info jcu_info __initconst = {
+	.name		= "uio_pdrv_genirq",
+	.id		= 0,
+	.data		= &jcu_platform_pdata,
+	.size_data	= sizeof(jcu_platform_pdata),
+	.res		= jcu_resources,
+	.num_res	= ARRAY_SIZE(jcu_resources),
 };
 
 /* Ether */
@@ -517,6 +540,7 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pinmux_setup();
 	r7s72100_add_dt_devices();
 
+	platform_device_register_full(&jcu_info);
 	platform_device_register_full(&dma_info);
 	platform_device_register_full(&ether_info);
 	platform_device_register_full(&riic0_info);
