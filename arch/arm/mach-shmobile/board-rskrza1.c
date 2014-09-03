@@ -40,6 +40,15 @@
 #include <linux/platform_data/dma-rza1.h>
 #include <linux/uio_driver.h>
 
+static int usbgs = -1;
+static int __init early_usbgs(char *str)
+{
+	usbgs = 0;
+	get_option(&str, &usbgs);
+	return 0;
+}
+early_param("usbgs", early_usbgs);
+
 static struct map_desc rza1_io_desc[] __initdata = {
 	/* create a 1:1 entity map for 0xfcfexxxx
 	 * used by MSTP, CPG.
@@ -534,6 +543,47 @@ static const struct platform_device_info r8a66597_usb_host1_info __initconst = {
 	.num_res	= ARRAY_SIZE(r8a66597_usb_host1_resources),
 };
 
+/* USB Gadget */
+static const struct r8a66597_platdata r8a66597_usb_gadget0_pdata __initconst = {
+	.endian = 0,
+	.on_chip = 1,
+	.xtal = R8A66597_PLATDATA_XTAL_48MHZ,
+};
+
+static const struct resource r8a66597_usb_gadget0_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe8010000, 0x1a0),
+	DEFINE_RES_IRQ(gic_iid(73)),
+};
+
+static const struct platform_device_info r8a66597_usb_gadget0_info __initconst = {
+	.name		= "r8a66597_udc",
+	.id		= 0,
+	.data		= &r8a66597_usb_gadget0_pdata,
+	.size_data	= sizeof(r8a66597_usb_gadget0_pdata),
+	.res		= r8a66597_usb_gadget0_resources,
+	.num_res	= ARRAY_SIZE(r8a66597_usb_gadget0_resources),
+};
+
+static const struct r8a66597_platdata r8a66597_usb_gadget1_pdata __initconst = {
+	.endian = 0,
+	.on_chip = 1,
+	.xtal = R8A66597_PLATDATA_XTAL_48MHZ,
+};
+
+static const struct resource r8a66597_usb_gadget1_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe8207000, 0x1a0),
+	DEFINE_RES_IRQ(gic_iid(74)),
+};
+
+static const struct platform_device_info r8a66597_usb_gadget1_info __initconst = {
+	.name		= "r8a66597_udc",
+	.id		= 1,
+	.data		= &r8a66597_usb_gadget1_pdata,
+	.size_data	= sizeof(r8a66597_usb_gadget1_pdata),
+	.res		= r8a66597_usb_gadget1_resources,
+	.num_res	= ARRAY_SIZE(r8a66597_usb_gadget1_resources),
+};
+
 static void __init rskrza1_add_standard_devices(void)
 {
 	r7s72100_clock_init();
@@ -553,8 +603,17 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&spibsc0_info);
 	platform_device_register_full(&spibsc1_info);
 	platform_device_register_full(&adc0_info);
-	platform_device_register_full(&r8a66597_usb_host0_info);
-	platform_device_register_full(&r8a66597_usb_host1_info);
+
+	if (usbgs == 0) {
+		platform_device_register_full(&r8a66597_usb_gadget0_info);
+		platform_device_register_full(&r8a66597_usb_host1_info);
+	} else if (usbgs == 1) {
+		platform_device_register_full(&r8a66597_usb_host0_info);
+		platform_device_register_full(&r8a66597_usb_gadget1_info);
+	} else {
+		platform_device_register_full(&r8a66597_usb_host0_info);
+		platform_device_register_full(&r8a66597_usb_host1_info);
+	}
 
 	r7s72100_register_rspi(0);
 	r7s72100_register_rspi(1);
