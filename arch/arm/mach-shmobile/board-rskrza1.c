@@ -85,7 +85,7 @@ void __init rza1_map_io(void)
 		.mid	= mid_v,					\
 	}
 
-static const struct rza1_dma_slave_config rza1_dma_slaves[] = {
+static const struct rza1_dma_slave_config rza1_dma_slaves[] __initconst = {
 	{
 		.slave_id	= RZA1DMA_SLAVE_SDHI0_TX,
 		.addr		= 0xe804e030,
@@ -145,13 +145,13 @@ static const struct rza1_dma_slave_config rza1_dma_slaves[] = {
 	},
 };
 
-static struct rza1_dma_pdata dma_pdata = {
+static const struct rza1_dma_pdata dma_pdata __initconst = {
 	.slave		= rza1_dma_slaves,
 	.slave_num	= ARRAY_SIZE(rza1_dma_slaves),
 	.channel_num	= 16,
 };
 
-static struct resource rza1_dma_resources[] = {
+static const struct resource rza1_dma_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe8200000, 0x1000),
 	DEFINE_RES_MEM(0xfcfe1000, 0x1000),
 	DEFINE_RES_IRQ(gic_iid(41)),
@@ -173,7 +173,7 @@ static struct resource rza1_dma_resources[] = {
 	DEFINE_RES_IRQ(gic_iid(57)),
 };
 
-static struct platform_device_info dma_info = {
+static const struct platform_device_info dma_info  __initconst = {
 	.name		= "rza1-dma",
 	.id		= -1,
 	.res		= rza1_dma_resources,
