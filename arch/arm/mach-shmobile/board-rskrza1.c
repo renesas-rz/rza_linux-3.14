@@ -590,6 +590,8 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pinmux_setup();
 	r7s72100_add_dt_devices();
 
+	r7s72100_pfc_pin_assign(P1_15, ALT1, DIIO_PBDC_EN);	/* AD7 */
+
 	platform_device_register_full(&jcu_info);
 	platform_device_register_full(&dma_info);
 	platform_device_register_full(&ether_info);
