@@ -267,6 +267,7 @@ static int vdc5fb_pinmux_gwp0700cnwv04(struct platform_device *pdev)
 	return 0;
 }
 
+static struct fb_videomode videomode_gwp0700cnwv04 = {
 static struct fb_videomode videomode_gwp0700cnwv04 __initdata = {
 	.name		= "gwp0700cnwv04",
 	.refresh	= 60,
@@ -284,6 +285,7 @@ static struct fb_videomode videomode_gwp0700cnwv04 __initdata = {
 	.flag		= 0,
 };
 
+static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata = {
 static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata __initconst = {
 	.name			= "gwp0700cnwv04",
 	.videomode		= &videomode_gwp0700cnwv04,
