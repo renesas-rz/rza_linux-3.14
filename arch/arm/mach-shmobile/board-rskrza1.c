@@ -45,6 +45,7 @@
 #include <linux/usb/r8a66597.h>
 #include <linux/platform_data/dma-rza1.h>
 #include <linux/uio_driver.h>
+#include <clocksource/sh_ostm.h>
 #include <video/vdc5fb.h>
 
 static int usbgs = -1;
@@ -501,6 +502,30 @@ static const struct i2c_board_info i2c3_devices[] __initconst = {
 	},
 };
 
+/* OSTM */
+static struct rza1_ostm_pdata ostm_pdata = {
+	.clksrc.name = "ostm.0",
+	.clksrc.rating = 300,
+	.clkevt.name = "ostm.1",
+	.clkevt.rating = 300,
+};
+
+static const struct resource ostm_resources[] __initconst = {
+	[0] = DEFINE_RES_MEM_NAMED(0xfcfec000, 0x030, "ostm.0"),
+	[1] = DEFINE_RES_MEM_NAMED(0xfcfec400, 0x030, "ostm.1"),
+	[2] = DEFINE_RES_IRQ_NAMED(134, "ostm.0"),
+	[3] = DEFINE_RES_IRQ_NAMED(135, "ostm.1"),
+};
+
+static const struct platform_device_info ostm_info __initconst = {
+	.name		= "ostm",
+	.id		= 0,
+	.data 		= &ostm_pdata,
+	.size_data	= sizeof(ostm_pdata),
+	.res		= ostm_resources,
+	.num_res	= ARRAY_SIZE(ostm_resources),
+};
+
 /* RTC */
 static const struct resource rtc_resources[] __initconst = {
 	DEFINE_RES_MEM(0xfcff1000, 0x2d),
@@ -785,6 +810,7 @@ static void __init rskrza1_add_standard_devices(void)
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
 
 	platform_device_register_full(&jcu_info);
+	platform_device_register_full(&ostm_info);
 	platform_device_register_full(&dma_info);
 	platform_device_register_full(&ether_info);
 	platform_device_register_full(&riic0_info);
