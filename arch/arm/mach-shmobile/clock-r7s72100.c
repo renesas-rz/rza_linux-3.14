@@ -28,6 +28,7 @@
 /* Standby Control Registers */
 #define STBCR3		0xfcfe0420
 #define STBCR4		0xfcfe0424
+#define STBCR5		0xfcfe0428
 #define STBCR6		0xfcfe042c
 #define STBCR7		0xfcfe0430
 #define STBCR8		0xfcfe0434
@@ -163,6 +164,7 @@ enum {
 	MSTP84, MSTP81, MSTP74,
 	MSTP71, MSTP70,
 	MSTP67, MSTP60,
+	MSTP51, MSTP50,
 	MSTP47, MSTP46, MSTP45, MSTP44, MSTP43, MSTP42, MSTP41, MSTP40,
 	MSTP33,	MSTP_NR
 };
@@ -197,6 +199,8 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP70] = SH_CLK_MSTP8(&peripheral1_clk, STBCR7, 0, 0), /* USB1 */
 	[MSTP67] = SH_CLK_MSTP8(&peripheral1_clk, STBCR6, 7, 0), /* ADC */
 	[MSTP60] = SH_CLK_MSTP8(&r_clk, STBCR6, 0, 0), /* RTC */
+	[MSTP51] = SH_CLK_MSTP8(&peripheral0_clk, STBCR5, 1, 0),   /* OSTM0 */
+	[MSTP50] = SH_CLK_MSTP8(&peripheral0_clk, STBCR5, 0, 0),   /* OSTM1 */
 	[MSTP47] = SH_CLK_MSTP8(&peripheral1_clk, STBCR4, 7, 0), /* SCIF0 */
 	[MSTP46] = SH_CLK_MSTP8(&peripheral1_clk, STBCR4, 6, 0), /* SCIF1 */
 	[MSTP45] = SH_CLK_MSTP8(&peripheral1_clk, STBCR4, 5, 0), /* SCIF2 */
@@ -241,6 +245,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("r8a66597_hcd.1", &mstp_clks[MSTP70]),
 	CLKDEV_DEV_ID("sh_adc.0", &mstp_clks[MSTP67]),
 	CLKDEV_DEV_ID("rtc.0", &mstp_clks[MSTP60]),
+	CLKDEV_DEV_ID("ostm.0", &mstp_clks[MSTP51]),
+	CLKDEV_DEV_ID("ostm.1", &mstp_clks[MSTP50]),
 	CLKDEV_CON_ID("mtu2_fck", &mstp_clks[MSTP33]),
 	CLKDEV_DEV_ID("rza1-pwm.0", &mstp_clks[MSTP33]),
 	CLKDEV_CON_ID("scux", &mstp_clks[MSTP81]),
