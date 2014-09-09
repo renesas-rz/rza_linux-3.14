@@ -33,6 +33,7 @@
 #define STBCR8		0xfcfe0434
 #define STBCR9		0xfcfe0438
 #define STBCR10		0xfcfe043c
+#define STBCR11		0xfcfe0440
 #define STBCR12		0xfcfe0444
 
 #define PLL_RATE 30
@@ -154,11 +155,12 @@ struct clk div4_clks[DIV4_NR] = {
 
 enum {
 	MSTP123, MSTP122, MSTP121, MSTP120,
+	MSTP115,
 	MSTP107, MSTP106, MSTP105, MSTP104, MSTP103,
 	MSTP97, MSTP96, MSTP95, MSTP94,
 	MSTP92, MSTP93,
 	MSTP91, MSTP90,
-	MSTP84, MSTP74,
+	MSTP84, MSTP81, MSTP74,
 	MSTP71, MSTP70,
 	MSTP67, MSTP60,
 	MSTP47, MSTP46, MSTP45, MSTP44, MSTP43, MSTP42, MSTP41, MSTP40,
@@ -172,6 +174,8 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP121] = SH_CLK_MSTP8(&peripheral1_clk, STBCR12, 1, 0), /* SDHI10 */
 	[MSTP120] = SH_CLK_MSTP8(&peripheral1_clk, STBCR12, 0,
 			CLK_ENABLE_ON_INIT),			   /* SDHI11 */
+	[MSTP115] = SH_CLK_MSTP8(&peripheral0_clk, STBCR11, 5,
+			CLK_ENABLE_ON_INIT),			   /* SSIF0 */
 	[MSTP107] = SH_CLK_MSTP8(&peripheral1_clk, STBCR10, 7, 0), /* RSPI0 */
 	[MSTP106] = SH_CLK_MSTP8(&peripheral1_clk, STBCR10, 6, 0), /* RSPI1 */
 	[MSTP105] = SH_CLK_MSTP8(&peripheral1_clk, STBCR10, 5, 0), /* RSPI2 */
@@ -186,6 +190,8 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP91] = SH_CLK_MSTP8(&peripheral1_clk, STBCR9, 1, 0), /* VDC5FB0 */
 	[MSTP90] = SH_CLK_MSTP8(&peripheral1_clk, STBCR9, 0, 0), /* VDC5FB1 */
 	[MSTP84] = SH_CLK_MSTP8(&peripheral1_clk, STBCR8, 4, 0),   /* MMC */
+	[MSTP81] = SH_CLK_MSTP8(&peripheral0_clk, STBCR8, 1,
+			CLK_ENABLE_ON_INIT),			   /* SCUX */
 	[MSTP74] = SH_CLK_MSTP8(&peripheral1_clk, STBCR7, 4, 0), /* Ether */
 	[MSTP71] = SH_CLK_MSTP8(&peripheral1_clk, STBCR7, 1, 0), /* USB0 */
 	[MSTP70] = SH_CLK_MSTP8(&peripheral1_clk, STBCR7, 0, 0), /* USB1 */
@@ -216,6 +222,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh_mmcif", &mstp_clks[MSTP84]),
 	CLKDEV_DEV_ID("sh_mobile_sdhi.0", &mstp_clks[MSTP123]),
 	CLKDEV_DEV_ID("sh_mobile_sdhi.1", &mstp_clks[MSTP121]),
+	CLKDEV_CON_ID("ssif0", &mstp_clks[MSTP115]),
 	CLKDEV_DEV_ID("rspi.0", &mstp_clks[MSTP107]),
 	CLKDEV_DEV_ID("rspi.1", &mstp_clks[MSTP106]),
 	CLKDEV_DEV_ID("rspi.2", &mstp_clks[MSTP105]),
@@ -235,6 +242,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh_adc.0", &mstp_clks[MSTP67]),
 	CLKDEV_DEV_ID("rtc.0", &mstp_clks[MSTP60]),
 	CLKDEV_CON_ID("mtu2_fck", &mstp_clks[MSTP33]),
+	CLKDEV_CON_ID("scux", &mstp_clks[MSTP81]),
 	CLKDEV_CON_ID("usb0", &mstp_clks[MSTP71]),
 	CLKDEV_CON_ID("usb1", &mstp_clks[MSTP70]),
 
