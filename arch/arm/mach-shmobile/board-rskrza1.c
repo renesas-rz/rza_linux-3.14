@@ -20,6 +20,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/version.h>
 #include <linux/platform_device.h>
 #include <linux/sh_eth.h>
 #include <asm/mach/map.h>
@@ -28,6 +29,7 @@
 #include <mach/r7s72100.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/hardware/cache-l2x0.h>
 #include <linux/spi/rspi.h>
 #include <linux/spi/sh_spibsc.h>
 #include <linux/spi/spi.h>
@@ -60,6 +62,17 @@ static struct map_desc rza1_io_desc[] __initdata = {
 		.length		= SZ_64K,
 		.type		= MT_DEVICE_NONSHARED
 	},
+#ifdef CONFIG_CACHE_L2X0
+	/* create a 1:1 entity map for 0x3ffffxxx
+	 * used by L2CC (PL310).
+	 */
+	{
+		.virtual	= 0xfffee000,
+		.pfn		= __phys_to_pfn(0x3ffff000),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE_NONSHARED
+	},
+#endif
 };
 
 void __init rza1_map_io(void)
@@ -719,6 +732,16 @@ static const struct platform_device_info r8a66597_usb_gadget1_info __initconst =
 
 static void __init rskrza1_add_standard_devices(void)
 {
+#ifdef CONFIG_CACHE_L2X0
+	/* Early BRESP enable, 16K*8way(defualt) */
+	/* NOTES: BRESP can be set for IP version after r2p0 */
+	/*        As of linux-3.16, cache-l2x0.c handles this automatically */
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,16,0)
+	l2x0_init(IOMEM(0xfffee000), 0x40000000, 0xffffffff);	/* Early BRESP enable */
+#else
+	l2x0_init(IOMEM(0xfffee000), 0x00000000, 0xffffffff);	/* Leave as defaults */
+#endif
+#endif
 	r7s72100_clock_init();
 	r7s72100_pinmux_setup();
 	r7s72100_add_dt_devices();
