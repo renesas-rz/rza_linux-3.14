@@ -35,6 +35,8 @@
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
 #include <linux/i2c-riic.h>
+#include <linux/pwm.h>
+#include <linux/pwm_backlight.h>
 #include <linux/platform_data/at24.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -582,6 +584,24 @@ static const struct platform_device_info pwm0_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* Backlight */
+static struct platform_pwm_backlight_data pwm_backlight_pdata = {
+	.max_brightness = 255,
+	.dft_brightness = 255,
+	.pwm_period_ns = 33333, /* 30kHz */
+	.enable_gpio = -1,
+};
+
+static struct pwm_lookup pwm_lookup[] = {
+	PWM_LOOKUP("rza1-pwm.0", 0, "pwm-backlight.0", NULL),
+};
+
+static const struct platform_device_info pwm_backlight_info __initconst = {
+	.name		= "pwm-backlight",
+	.data		= &pwm_backlight_pdata,
+	.size_data	= sizeof(pwm_backlight_pdata),
+};
+
 /* RSPI */
 #define RSPI_RESOURCE(idx, baseaddr, irq)				\
 static const struct resource rspi##idx##_resources[] __initconst = {	\
@@ -774,6 +794,7 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&rtc_info);
 	platform_device_register_full(&nor_flash_info);
 	platform_device_register_full(&pwm0_info);
+	platform_device_register_full(&pwm_backlight_info);
 	platform_device_register_full(&spibsc0_info);
 	platform_device_register_full(&spibsc1_info);
 	platform_device_register_full(&adc0_info);
@@ -795,6 +816,8 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_register_rspi(2);
 	r7s72100_register_rspi(3);
 	r7s72100_register_rspi(4);
+
+	pwm_add_table(pwm_lookup, ARRAY_SIZE(pwm_lookup));
 }
 
 static const char * const rskrza1_boards_compat_dt[] __initconst = {
