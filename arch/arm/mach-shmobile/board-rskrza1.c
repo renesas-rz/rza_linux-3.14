@@ -341,7 +341,7 @@ static const struct uio_info jcu_platform_pdata __initconst = {
 };
 
 static const struct resource jcu_resources[] __initconst = {
-	DEFINE_RES_MEM_NAMED(0xe8017000, 0x3d2, "jcu:reg"), /* for JCU of RZ */
+	DEFINE_RES_MEM_NAMED(0xe8017000, 0x1000, "jcu:reg"), /* for JCU of RZ */
 	DEFINE_RES_MEM_NAMED(0xfcfe0000, 0x2000, "jcu:rstreg clkreg"), /* Use STBCR6 & SWRSTCR2 */
 	DEFINE_RES_MEM_NAMED(0x60900000, 0x100000, "jcu:iram"), /* (Non cacheable 1MB) */
 };
