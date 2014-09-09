@@ -33,7 +33,9 @@
 #include <linux/spi/rspi.h>
 #include <linux/spi/sh_spibsc.h>
 #include <linux/spi/spi.h>
+#include <linux/i2c.h>
 #include <linux/i2c-riic.h>
+#include <linux/platform_data/at24.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -485,6 +487,18 @@ static const struct platform_device_info riic3_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+static struct at24_platform_data eeprom_pdata = {
+	.byte_len = 2048,
+	.page_size = 16,
+};
+
+static const struct i2c_board_info i2c3_devices[] __initconst = {
+	{
+		I2C_BOARD_INFO("at24", 0x50),
+		.platform_data = &eeprom_pdata,
+	},
+};
+
 /* RTC */
 static const struct resource rtc_resources[] __initconst = {
 	DEFINE_RES_MEM(0xfcff1000, 0x2d),
@@ -747,6 +761,8 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_add_dt_devices();
 
 	r7s72100_pfc_pin_assign(P1_15, ALT1, DIIO_PBDC_EN);	/* AD7 */
+
+	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
 
 	platform_device_register_full(&jcu_info);
 	platform_device_register_full(&dma_info);
