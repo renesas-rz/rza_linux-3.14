@@ -147,6 +147,9 @@ config SYS_SUPPORTS_SH_CMT
 config SYS_SUPPORTS_SH_MTU2
         bool
 
+config SYS_SUPPORTS_SH_OSTM
+        bool
+
 config SYS_SUPPORTS_SH_TMU
         bool
 
@@ -170,6 +173,13 @@ config SH_TIMER_MTU2
 	  This enables build of a clockevent driver for the Multi-Function
 	  Timer Pulse Unit 2 (TMU2) hardware available on SoCs from Renesas.
 	  This hardware comes with 16 bit-timer registers.
+
+config CLKSRC_SH_OSTM
+	bool "Renesas OSTM timer driver"
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_MMIO
+	help
+	  This enables build of the OSTM timer driver.
 
 config SH_TIMER_TMU
 	bool "Renesas TMU timer driver" if COMPILE_TEST
