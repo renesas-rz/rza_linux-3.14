@@ -304,17 +304,8 @@ static struct platform_driver pwm_driver = {
 	.remove		= pwm_remove,
 	.id_table	= pwm_id_table,
 };
+module_platform_driver(pwm_driver);
 
-static int __init pwm_init(void)
-{
-	return platform_driver_register(&pwm_driver);
-}
-arch_initcall(pwm_init);
-
-static void __exit pwm_exit(void)
-{
-	platform_driver_unregister(&pwm_driver);
-}
-module_exit(pwm_exit);
-
+MODULE_ALIAS("platform:rza1-pwm");
+MODULE_DESCRIPTION("Renesas RZA1 PWM Driver");
 MODULE_LICENSE("GPL v2");
