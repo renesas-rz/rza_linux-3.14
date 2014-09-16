@@ -568,7 +568,7 @@ static const struct platform_device_info ostm_info __initconst = {
 
 /* RTC */
 static const struct resource rtc_resources[] __initconst = {
-	DEFINE_RES_MEM(0xfcff1000, 0x2d),
+	DEFINE_RES_MEM(0xfcff1000, 0x2e),
 	DEFINE_RES_IRQ(gic_iid(309)),	/* Period IRQ */
 	DEFINE_RES_IRQ(gic_iid(310)),	/* Carry IRQ */
 	DEFINE_RES_IRQ(gic_iid(308)),	/* Alarm IRQ */
