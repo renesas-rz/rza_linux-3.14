@@ -51,6 +51,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98090 if I2C
 	select SND_SOC_MAX98095 if I2C
 	select SND_SOC_MAX9850 if I2C
+	select SND_SOC_MAX9856 if I2C
 	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_MC13783 if MFD_MC13XXX
@@ -299,6 +300,9 @@ config SND_SOC_MAX98095
        tristate
 
 config SND_SOC_MAX9850
+	tristate
+
+config SND_SOC_MAX9856
 	tristate
 
 config SND_SOC_HDMI_CODEC
