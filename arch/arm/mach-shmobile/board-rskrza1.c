@@ -47,6 +47,7 @@
 #include <linux/uio_driver.h>
 #include <clocksource/sh_ostm.h>
 #include <video/vdc5fb.h>
+#include <sound/sh_scux.h>
 
 static int usbgs = -1;
 static int __init early_usbgs(char *str)
@@ -497,6 +498,9 @@ static struct at24_platform_data eeprom_pdata = {
 
 static const struct i2c_board_info i2c3_devices[] __initconst = {
 	{
+		I2C_BOARD_INFO("max9856", 0x10),
+	},
+	{
 		I2C_BOARD_INFO("at24", 0x50),
 		.platform_data = &eeprom_pdata,
 	},
@@ -861,6 +865,101 @@ int rza1_i2c_read_byte(u8 ch, u8 devaddr, u8 regoffset, u8 *value)
 	return err;
 }
 
+/* Audio */
+static const struct platform_device_info alsa_soc_info = {
+	.name		= "rskrza1_alsa_soc_platform",
+	.id		= 0,
+};
+
+static const struct resource scux_resources[] __initconst = {
+	[0] = DEFINE_RES_MEM_NAMED(0xe8208000, 0x00001778, "scux"),
+	[1] = DEFINE_RES_MEM_NAMED(0xe820b000, 0x00002830, "ssif0"),
+};
+
+static struct scu_config ssi_ch_value[] = {
+	{RP_MEM_SSI0,		SSI0},
+	{RP_MEM_SRC1_SSI0,	SSI0},
+	{RP_MEM_SRC1_DVC1_SSI0,	SSI0},
+	{RC_SSI0_MEM,		SSI0},
+	{RC_SSI0_SRC0_MEM,	SSI0},
+};
+
+static struct scu_config src_ch_value[] = {
+	{RP_MEM_SSI0,		-1},
+	{RP_MEM_SRC1_SSI0,	SRC1},
+	{RP_MEM_SRC1_DVC1_SSI0,	SRC1},
+	{RC_SSI0_MEM,		-1},
+	{RC_SSI0_SRC0_MEM,	SRC0},
+};
+
+static struct scu_config dvc_ch_value[] = {
+	{RP_MEM_SSI0,		-1},
+	{RP_MEM_SRC1_SSI0,	-1},
+	{RP_MEM_SRC1_DVC1_SSI0,	DVC1},
+	{RC_SSI0_MEM,		-1},
+	{RC_SSI0_SRC0_MEM,	-1},
+};
+
+static struct scu_config audma_slave_value[] = {
+	{RP_MEM_SSI0,		RZA1DMA_SLAVE_PCM_MEM_SSI0},
+	{RP_MEM_SRC1_SSI0,	RZA1DMA_SLAVE_PCM_MEM_SRC1},
+	{RP_MEM_SRC1_DVC1_SSI0,	RZA1DMA_SLAVE_PCM_MEM_SRC1},
+	{RC_SSI0_MEM,		RZA1DMA_SLAVE_PCM_SSI0_MEM},
+	{RC_SSI0_SRC0_MEM,	RZA1DMA_SLAVE_PCM_SRC0_MEM},
+};
+
+static struct scu_config ssi_depend_value[] = {
+	{RP_MEM_SSI0,		SSI_INDEPENDANT},
+	{RP_MEM_SRC1_SSI0,	SSI_DEPENDANT},
+	{RP_MEM_SRC1_DVC1_SSI0,	SSI_DEPENDANT},
+	{RC_SSI0_MEM,		SSI_INDEPENDANT},
+	{RC_SSI0_SRC0_MEM,	SSI_DEPENDANT},
+};
+
+static struct scu_config ssi_mode_value[] = {
+	{RP_MEM_SSI0,		SSI_MASTER},
+	{RP_MEM_SRC1_SSI0,	SSI_MASTER},
+	{RP_MEM_SRC1_DVC1_SSI0,	SSI_MASTER},
+	{RC_SSI0_MEM,		SSI_SLAVE},
+	{RC_SSI0_SRC0_MEM,	SSI_SLAVE},
+};
+
+static struct scu_config src_mode_value[] = {
+	{RP_MEM_SSI0,		SRC_CR_ASYNC},
+	{RP_MEM_SRC1_SSI0,	SRC_CR_ASYNC},
+	{RP_MEM_SRC1_DVC1_SSI0,	SRC_CR_ASYNC},
+	{RC_SSI0_MEM,		SRC_CR_ASYNC},
+	{RC_SSI0_SRC0_MEM,	SRC_CR_ASYNC},
+};
+
+static const struct scu_platform_data scu_pdata __initconst = {
+	.ssi_master		= SSI0,
+	.ssi_slave		= SSI0,
+	.ssi_ch			= ssi_ch_value,
+	.ssi_ch_num		= ARRAY_SIZE(ssi_ch_value),
+	.src_ch			= src_ch_value,
+	.src_ch_num		= ARRAY_SIZE(src_ch_value),
+	.dvc_ch			= dvc_ch_value,
+	.dvc_ch_num		= ARRAY_SIZE(dvc_ch_value),
+	.dma_slave_maxnum	= RZA1DMA_SLAVE_PCM_MAX,
+	.audma_slave		= audma_slave_value,
+	.audma_slave_num	= ARRAY_SIZE(audma_slave_value),
+	.ssi_depend		= ssi_depend_value,
+	.ssi_depend_num		= ARRAY_SIZE(ssi_depend_value),
+	.ssi_mode		= ssi_mode_value,
+	.ssi_mode_num		= ARRAY_SIZE(ssi_mode_value),
+	.src_mode		= src_mode_value,
+	.src_mode_num		= ARRAY_SIZE(src_mode_value),
+};
+
+static const struct platform_device_info scux_info __initconst = {
+	.name		= "scux-pcm-audio",
+	.id		= 0,
+	.data		= &scu_pdata,
+	.size_data	= sizeof(scu_pdata),
+	.num_res	= ARRAY_SIZE(scux_resources),
+	.res		= scux_resources,
+};
 
 static void __init rskrza1_add_standard_devices(void)
 {
@@ -885,6 +984,8 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&jcu_info);
 	platform_device_register_full(&ostm_info);
 	platform_device_register_full(&dma_info);
+	platform_device_register_full(&alsa_soc_info);
+	platform_device_register_full(&scux_info);
 	platform_device_register_full(&ether_info);
 	platform_device_register_full(&riic0_info);
 	platform_device_register_full(&riic1_info);
