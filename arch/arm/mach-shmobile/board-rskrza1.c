@@ -647,7 +647,7 @@ static const struct rspi_plat_data rspi_pdata __initconst = {
 };
 
 #define r7s72100_register_rspi(idx)					   \
-	platform_device_register_resndata(&platform_bus, "rspi", idx,   \
+	platform_device_register_resndata(&platform_bus, "rspi-rz", idx,   \
 					rspi##idx##_resources,		   \
 					ARRAY_SIZE(rspi##idx##_resources), \
 					&rspi_pdata, sizeof(rspi_pdata))
