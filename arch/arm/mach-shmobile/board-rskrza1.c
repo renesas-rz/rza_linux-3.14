@@ -49,6 +49,7 @@
 #include <linux/platform_data/sh_adc.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/platform_data/dma-rza1.h>
+#include <linux/input/edt-ft5x06.h>
 #include <linux/uio_driver.h>
 #include <clocksource/sh_ostm.h>
 #include <video/vdc5fb.h>
@@ -494,6 +495,27 @@ static const struct platform_device_info riic3_info __initconst = {
 	.data		= &riic3_pdata,
 	.size_data	= sizeof(riic3_pdata),
 	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static struct edt_ft5x06_platform_data ft5216_pdata __initdata = {
+	.irq_pin	= -1,
+	.reset_pin	= -1,
+
+	/* startup defaults for operational parameters */
+//	bool use_parameters;
+//	u8 gain;
+//	u8 threshold;
+//	u8 offset;
+//	u8 report_rate;
+};
+
+
+static const struct i2c_board_info i2c0_devices[] __initconst = {
+	{
+		I2C_BOARD_INFO("edt-ft5x06", 0x38),
+		.platform_data = &ft5216_pdata,
+		.irq		= 33,
+	},
 };
 
 static struct at24_platform_data eeprom_pdata = {
@@ -1096,6 +1118,8 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_add_dt_devices();
 
 	r7s72100_pfc_pin_assign(P1_15, ALT1, DIIO_PBDC_EN);	/* AD7 */
+	r7s72100_pfc_pin_assign(P1_0, ALT1, DIIO_PBDC_EN);	/* I2C SCL0 */
+	r7s72100_pfc_pin_assign(P1_1, ALT1, DIIO_PBDC_EN);	/* I2C SDA0 */
 
 	r7s72100_pfc_pin_assign(P3_8, ALT8, DIIO_PBDC_DIS);	/* MMC CD */
 	r7s72100_pfc_pin_assign(P3_10, ALT8, DIIO_PBDC_DIS);	/* MMC DAT1 */
@@ -1109,6 +1133,7 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P4_2, ALT8, DIIO_PBDC_DIS);	/* MMC DAT6*/
 	r7s72100_pfc_pin_assign(P4_3, ALT8, DIIO_PBDC_DIS);	/* MMC DAT7 */
 
+	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
 	spi_register_board_info(spi_devices, ARRAY_SIZE(spi_devices));
 
