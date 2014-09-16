@@ -33,6 +33,7 @@
 #include <linux/spi/rspi.h>
 #include <linux/spi/sh_spibsc.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 #include <linux/i2c.h>
 #include <linux/i2c-riic.h>
 #include <linux/pwm.h>
@@ -598,6 +599,70 @@ static const struct platform_device_info nor_flash_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* SPI NOR Flash */
+static struct mtd_partition spibsc0_flash_partitions[] = {
+	{
+		.name		= "spibsc0_loader",
+		.offset		= 0x00000000,
+		.size		= 0x00080000,
+		/* .mask_flags	= MTD_WRITEABLE, */
+	},
+	{
+		.name		= "spibsc0_bootenv",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 0x00040000,
+	},
+	{
+		.name		= "spibsc0_kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 0x00400000,
+	},
+	{
+		.name		= "spibsc0_rootfs",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct mtd_partition spibsc1_flash_partitions[] = {
+	{
+		.name		= "spibsc1_data",
+		.offset		= 0x00000000,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct flash_platform_data spibsc0_flash_pdata = {
+	.name	= "m25p80",
+	.parts	= spibsc0_flash_partitions,
+	.nr_parts = ARRAY_SIZE(spibsc0_flash_partitions),
+	.type = "s25fl512s",
+};
+
+static struct flash_platform_data spibsc1_flash_pdata = {
+	.name	= "m25p80",
+	.parts	= spibsc1_flash_partitions,
+	.nr_parts = ARRAY_SIZE(spibsc1_flash_partitions),
+	.type = "s25fl512s",
+};
+
+static struct spi_board_info spi_devices[] __initdata = {
+	{
+		/* SPI Flash0 */
+		.modalias = "m25p80",
+		.bus_num = 5,
+		.chip_select = 0,
+		.platform_data = &spibsc0_flash_pdata,
+	},
+	{
+		/* SPI Flash1 */
+		.modalias = "m25p80",
+		.bus_num = 6,
+		.chip_select = 0,
+		.platform_data = &spibsc1_flash_pdata,
+	},
+};
+
 /* PWM */
 static const struct resource pwm_resources[] __initconst = {
 	DEFINE_RES_MEM(0xfcff0200, 0x4c),	/* mtu2_3,4 */
@@ -980,6 +1045,7 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P1_15, ALT1, DIIO_PBDC_EN);	/* AD7 */
 
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
+	spi_register_board_info(spi_devices, ARRAY_SIZE(spi_devices));
 
 	platform_device_register_full(&jcu_info);
 	platform_device_register_full(&ostm_info);
