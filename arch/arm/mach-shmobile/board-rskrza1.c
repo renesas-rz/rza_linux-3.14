@@ -36,6 +36,10 @@
 #include <linux/spi/flash.h>
 #include <linux/i2c.h>
 #include <linux/i2c-riic.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/sh_mmcif.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
+#include <linux/mfd/tmio.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/platform_data/at24.h>
@@ -796,6 +800,55 @@ static const struct platform_device_info adc0_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* MMCIF */
+static const struct resource sh_mmcif_resources[] __initconst = {
+	DEFINE_RES_MEM_NAMED(0xe804c800, 0x100, "MMCIF"),
+	DEFINE_RES_IRQ(gic_iid(300)),
+	DEFINE_RES_IRQ(gic_iid(301)),
+};
+
+static const struct sh_mmcif_plat_data sh_mmcif_pdata __initconst = {
+	.ocr		= MMC_VDD_32_33,
+	.caps		= MMC_CAP_4_BIT_DATA |
+			  MMC_CAP_8_BIT_DATA |
+			  MMC_CAP_NONREMOVABLE,
+};
+
+static const struct platform_device_info mmc_info __initconst = {
+	.name		= "sh_mmcif",
+	.id		= -1,
+	.res		= sh_mmcif_resources,
+	.num_res	= ARRAY_SIZE(sh_mmcif_resources),
+	.data		= &sh_mmcif_pdata,
+	.size_data	= sizeof(sh_mmcif_pdata),
+};
+
+/* SDHI0 */
+static const struct sh_mobile_sdhi_info sdhi0_pdata __initconst = {
+	.dma_slave_tx	= RZA1DMA_SLAVE_SDHI0_TX,
+	.dma_slave_rx	= RZA1DMA_SLAVE_SDHI0_RX,
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
+	.tmio_ocr_mask	= MMC_VDD_32_33,
+	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+};
+
+static const struct resource sdhi0_resources[] __initconst = {
+	DEFINE_RES_MEM_NAMED(0xe804e000, 0x100, "SDHIO"),
+	DEFINE_RES_IRQ_NAMED(gic_iid(302), SH_MOBILE_SDHI_IRQ_CARD_DETECT),
+	DEFINE_RES_IRQ_NAMED(gic_iid(303), SH_MOBILE_SDHI_IRQ_SDCARD),
+	DEFINE_RES_IRQ_NAMED(gic_iid(304), SH_MOBILE_SDHI_IRQ_SDIO),
+};
+
+static const struct platform_device_info sdhi0_info __initconst = {
+	.name		= "sh_mobile_sdhi",
+	.id		= 0,
+	.res		= sdhi0_resources,
+	.num_res	= ARRAY_SIZE(sdhi0_resources),
+	.data		= &sdhi0_pdata,
+	.size_data	= sizeof(sdhi0_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
 /* USB Host */
 static const struct r8a66597_platdata r8a66597_pdata __initconst = {
 	.endian = 0,
@@ -1044,6 +1097,18 @@ static void __init rskrza1_add_standard_devices(void)
 
 	r7s72100_pfc_pin_assign(P1_15, ALT1, DIIO_PBDC_EN);	/* AD7 */
 
+	r7s72100_pfc_pin_assign(P3_8, ALT8, DIIO_PBDC_DIS);	/* MMC CD */
+	r7s72100_pfc_pin_assign(P3_10, ALT8, DIIO_PBDC_DIS);	/* MMC DAT1 */
+	r7s72100_pfc_pin_assign(P3_11, ALT8, DIIO_PBDC_DIS);	/* MMC DAT0 */
+	r7s72100_pfc_pin_assign(P3_12, ALT8, DIIO_PBDC_DIS);	/* MMC CLK */
+	r7s72100_pfc_pin_assign(P3_13, ALT8, DIIO_PBDC_DIS);	/* MMC CMD */
+	r7s72100_pfc_pin_assign(P3_14, ALT8, DIIO_PBDC_DIS);	/* MMC DAT3*/
+	r7s72100_pfc_pin_assign(P3_15, ALT8, DIIO_PBDC_DIS);	/* MMC DAT2 */
+	r7s72100_pfc_pin_assign(P4_0, ALT8, DIIO_PBDC_DIS);	/* MMC DAT4 */
+	r7s72100_pfc_pin_assign(P4_1, ALT8, DIIO_PBDC_DIS);	/* MMC DAT5 */
+	r7s72100_pfc_pin_assign(P4_2, ALT8, DIIO_PBDC_DIS);	/* MMC DAT6*/
+	r7s72100_pfc_pin_assign(P4_3, ALT8, DIIO_PBDC_DIS);	/* MMC DAT7 */
+
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
 	spi_register_board_info(spi_devices, ARRAY_SIZE(spi_devices));
 
@@ -1064,6 +1129,8 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&spibsc0_info);
 	platform_device_register_full(&spibsc1_info);
 	platform_device_register_full(&adc0_info);
+	platform_device_register_full(&mmc_info);
+	platform_device_register_full(&sdhi0_info);
 	platform_device_register_full(&vdc5fb_info);
 
 	if (usbgs == 0) {
