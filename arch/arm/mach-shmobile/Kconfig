@@ -28,6 +28,7 @@ config ARCH_EMEV2
 config ARCH_R7S72100
 	bool "RZ/A1H (R7S72100)"
 	select SYS_SUPPORTS_SH_MTU2
+	select SYS_SUPPORTS_SH_OSTM
 
 config ARCH_R8A7790
 	bool "R-Car H2 (R8A77900)"
