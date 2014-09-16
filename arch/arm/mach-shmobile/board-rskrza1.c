@@ -652,6 +652,20 @@ static const struct rspi_plat_data rspi_pdata __initconst = {
 					ARRAY_SIZE(rspi##idx##_resources), \
 					&rspi_pdata, sizeof(rspi_pdata))
 
+
+static struct spi_board_info rskrza1_spi_devices[] __initdata = {
+#if (defined CONFIG_SPI_RSPI) && !(defined CONFIG_SH_ETH)
+	{
+		/* spidev */
+		.modalias		= "spidev",
+		.max_speed_hz           = 5000000,
+		.bus_num                = 4,
+		.chip_select            = 0,
+		.mode			= SPI_MODE_3,
+	},
+#endif
+};
+
 /* spibsc0 */
 static const struct sh_spibsc_info spibsc0_pdata __initconst = {
 	.bus_num	= 5,
@@ -789,6 +803,65 @@ static const struct platform_device_info r8a66597_usb_gadget1_info __initconst =
 	.num_res	= ARRAY_SIZE(r8a66597_usb_gadget1_resources),
 };
 
+/* Write to I2C device */
+/* stolen from board-sx1.c */
+int rza1_i2c_write_byte(u8 ch, u8 devaddr, u8 regoffset, u8 value)
+{
+	struct i2c_adapter *adap;
+	int err;
+	struct i2c_msg msg[1];
+	unsigned char data[2];
+
+	adap = i2c_get_adapter(ch);
+	if (!adap)
+		return -ENODEV;
+	msg->addr = devaddr;	/* I2C address of chip */
+	msg->flags = 0;
+	msg->len = 2;
+	msg->buf = data;
+	data[0] = regoffset;	/* register num */
+	data[1] = value;		/* register data */
+	err = i2c_transfer(adap, msg, 1);
+	i2c_put_adapter(adap);
+	if (err >= 0)
+		return 0;
+	return err;
+}
+
+/* Read from I2C device */
+/* stolen from board-sx1.c */
+int rza1_i2c_read_byte(u8 ch, u8 devaddr, u8 regoffset, u8 *value)
+{
+	struct i2c_adapter *adap;
+	int err;
+	struct i2c_msg msg[1];
+	unsigned char data[2];
+
+	adap = i2c_get_adapter(ch);
+	if (!adap)
+		return -ENODEV;
+
+	msg->addr = devaddr;	/* I2C address of chip */
+	msg->flags = 0;
+	msg->len = 1;
+	msg->buf = data;
+	data[0] = regoffset;	/* register num */
+	err = i2c_transfer(adap, msg, 1);
+
+	msg->addr = devaddr;	/* I2C address */
+	msg->flags = I2C_M_RD;
+	msg->len = 1;
+	msg->buf = data;
+	err = i2c_transfer(adap, msg, 1);
+	*value = data[0];
+	i2c_put_adapter(adap);
+
+	if (err >= 0)
+		return 0;
+	return err;
+}
+
+
 static void __init rskrza1_add_standard_devices(void)
 {
 #ifdef CONFIG_CACHE_L2X0
@@ -843,8 +916,51 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_register_rspi(3);
 	r7s72100_register_rspi(4);
 
+	/* Register SPI device information */
+	spi_register_board_info(rskrza1_spi_devices,
+				ARRAY_SIZE(rskrza1_spi_devices));
+
+
 	pwm_add_table(pwm_lookup, ARRAY_SIZE(pwm_lookup));
 }
+static void __init rskrza1_init_late(void)
+{
+	/* Make SCIF4 availible. */
+	/* Done here because we have to wait till i2c ready */
+#if (defined CONFIG_SPI_RSPI) && !(defined CONFIG_SH_ETH)
+	{
+		int i;
+		u8 value;
+
+		/* Set P2_0-P2_11 and p3_3-p3_6 to input pins */
+		for (i=0;i<=11;i++)
+			r7s72100_pfc_pin_assign(P2_0+i, PMODE, DIR_IN);
+		for (i=3;i<=6;i++)
+			r7s72100_pfc_pin_assign(P3_0+i, PMODE, DIR_IN);
+
+		/* Set PX1_EN1 to 0 to disable Ethernet */
+		/* PX1_EN1 is controled through Port Expanders on I2C3 */
+		/* Register address 1 is the Output Control register */
+		i = rza1_i2c_read_byte(3, 0x21, 0x01, &value);
+		value &= ~0x02;		/* bit 1 = L */
+		if ( !i )
+			i = rza1_i2c_write_byte(3, 0x21, 0x01, value);
+		if ( !i ) {
+			/* Enable SPI4 pins */
+			/* RSKRZA1 Board SPI4 is on CN15 (but that means you can use Ethernet) */
+			r7s72100_pfc_pin_assign(P2_8, ALT8, DIIO_PBDC_EN);	/* RSPCK4 */
+			r7s72100_pfc_pin_assign(P2_9, ALT8, DIIO_PBDC_EN);	/* SSL40 */
+			r7s72100_pfc_pin_assign(P2_10, ALT8, DIIO_PBDC_EN);	/* MOSI4 */
+			r7s72100_pfc_pin_assign(P2_11, ALT8, DIIO_PBDC_EN);	/* MISO4 */
+		}
+		if( !i )
+			printk("%s: RSPI4 enabled on CN15\n",__func__);
+		else
+			printk("%s: ERROR: Failed to set pins for RSPI4 usage\n",__func__);
+	}
+#endif
+}
+
 
 static const char * const rskrza1_boards_compat_dt[] __initconst = {
 	"renesas,rskrza1",
@@ -854,6 +970,7 @@ static const char * const rskrza1_boards_compat_dt[] __initconst = {
 DT_MACHINE_START(RSKRZA1_DT, "rskrza1")
 	.init_early	= r7s72100_init_early,
 	.init_machine	= rskrza1_add_standard_devices,
+	.init_late	= rskrza1_init_late,
 	.dt_compat	= rskrza1_boards_compat_dt,
 	.map_io		= rza1_map_io,
 MACHINE_END
