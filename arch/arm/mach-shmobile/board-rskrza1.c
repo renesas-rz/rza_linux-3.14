@@ -65,6 +65,15 @@ static int __init early_usbgs(char *str)
 early_param("usbgs", early_usbgs);
 
 static struct map_desc rza1_io_desc[] __initdata = {
+	/* create a 1:1 entity map for 0xe8xxxxxx
+	 * used by INTC.
+	 */
+	{
+		.virtual	= 0xe8000000,
+		.pfn		= __phys_to_pfn(0xe8000000),
+		.length		= SZ_256M,
+		.type		= MT_DEVICE_NONSHARED
+	},
 	/* create a 1:1 entity map for 0xfcfexxxx
 	 * used by MSTP, CPG.
 	 */
