@@ -85,4 +85,16 @@ config SND_SCUX_WM8978
         depends on SND_SCUX_GENMAI
         select SND_SOC_WM8978
 
+config SND_SCUX_RSKRZA1
+	tristate "SCUX sound support on RSK-RZA1"
+	depends on ARCH_R7S72100
+	select SND_SOC_SCUX
+	select SND_SOC_MAX9856
+
+	help
+	  Enable sound support for the RSK-RZA1 board.
+	  This is supported to the Renesas SCUX peripheral.
+	  Say Y here if you have enabled, otherwise say N.
+	  To compile this driver as a module, say M.
+
 endmenu
