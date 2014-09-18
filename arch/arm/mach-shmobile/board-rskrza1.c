@@ -120,7 +120,7 @@ void __init rza1_map_io(void)
 		.mid	= mid_v,					\
 	}
 
-static const struct rza1_dma_slave_config rza1_dma_slaves[] __initconst = {
+static const struct rza1_dma_slave_config rza1_dma_slaves[] = {
 	{
 		.slave_id	= RZA1DMA_SLAVE_SDHI0_TX,
 		.addr		= 0xe804e030,
