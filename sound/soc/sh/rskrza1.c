@@ -473,7 +473,7 @@ static int rskrza1_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	/* set PLL clock */
-	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 11289600, SND_SOC_CLOCK_IN);
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 22579200, SND_SOC_CLOCK_IN);
 	if (ret) {
 		pr_err("snd_soc_dai_set_sysclk err=%d\n", ret);
 		return ret;
