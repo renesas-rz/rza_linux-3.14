@@ -34,15 +34,33 @@ struct max9856_priv {
 
 /* max9856 register cache */
 static const struct reg_default max9856_reg[] = {
-	{  2, 0x00 },
-	{  3, MAX9856_CLOCK_BSEL(2) },
-	{  4, 0x00 },
-	{  5, 0x00 },
-	{  6, 0x00 },
-	{  7, 0x00 },
-	{  8, 0x00 },
-	{  9, 0x00 },
-	{ 10, 0x00 },
+	{ 0x02, 0x00 },
+	{ 0x03, 0x00 },
+	{ 0x04, 0x00 },
+	{ 0x05, 0x00 },
+	{ 0x06, 0x00 },
+	{ 0x07, 0x00 },
+	{ 0x08, 0x00 },
+	{ 0x09, 0x00 },
+	{ 0x0a, 0x00 },
+	{ 0x0b, 0x00 },
+	{ 0x0c, 0x00 },
+	{ 0x0d, 0x00 },
+	{ 0x0e, 0x00 },
+	{ 0x0f, 0x00 },
+	{ 0x10, 0x11 },
+	{ 0x11, 0x00 },
+	{ 0x12, 0x00 },
+	{ 0x13, 0x00 },
+	{ 0x14, 0x00 },
+	{ 0x15, 0x00 },
+	{ 0x16, 0x00 },
+	{ 0x17, 0x00 },
+	{ 0x18, 0x00 },
+	{ 0x19, 0x00 },
+	{ 0x1a, 0x00 },
+	{ 0x1b, 0x00 },
+	{ 0x1c, 0xbf },
 };
 
 /* these registers are not used at the moment but provided for the sake of
@@ -105,59 +123,52 @@ SOC_SINGLE_TLV("Headphone Right Volume", MAX9856_HPR_VOL, 0, 0x3f, 1, max9856_hp
 
 /* Left Output Mixer Switch */
 static const struct snd_kcontrol_new max9856_lout_mixer_controls[] = {
-//	SOC_DAPM_SINGLE("None", MAX9856_MIX_OUT,
-//		MAX9856_MIX_OUT_MXOUTL_SHIFT, 0xf, 1),
-	SOC_DAPM_SINGLE("MIC PGA Switch", MAX9856_MIX_OUT,
-		MAX9856_MIX_OUT_MXOUTL_SHIFT, 1, 0),
-	SOC_DAPM_SINGLE("LINEIN1 Switch", MAX9856_MIX_OUT,
-		MAX9856_MIX_OUT_MXOUTL_SHIFT + 1, 1, 0),
-	SOC_DAPM_SINGLE("LINEIN2 Switch", MAX9856_MIX_OUT,
-		MAX9856_MIX_OUT_MXOUTL_SHIFT + 2, 1, 0),
 	SOC_DAPM_SINGLE("DAC Switch", MAX9856_MIX_OUT,
+		MAX9856_MIX_OUT_MXOUTL_SHIFT, 1, 0),
+	SOC_DAPM_SINGLE("LINEIN2 Switch", MAX9856_MIX_OUT,
+		MAX9856_MIX_OUT_MXOUTL_SHIFT + 1, 1, 0),
+	SOC_DAPM_SINGLE("LINEIN1 Switch", MAX9856_MIX_OUT,
+		MAX9856_MIX_OUT_MXOUTL_SHIFT + 2, 1, 0),
+	SOC_DAPM_SINGLE("MIC PGA Switch", MAX9856_MIX_OUT,
 		MAX9856_MIX_OUT_MXOUTL_SHIFT + 3, 1, 0),
 };
 
 /* Right Output Mixer Switch */
 static const struct snd_kcontrol_new max9856_rout_mixer_controls[] = {
-//	SOC_DAPM_SINGLE("None", MAX9856_MIX_OUT,
-//		MAX9856_MIX_OUT_MXOUTR_SHIFT, 0xf, 1),
-	SOC_DAPM_SINGLE("MIC PGA Switch", MAX9856_MIX_OUT,
-		MAX9856_MIX_OUT_MXOUTR_SHIFT, 1, 0),
-	SOC_DAPM_SINGLE("LINEIN1 Switch", MAX9856_MIX_OUT,
-		MAX9856_MIX_OUT_MXOUTR_SHIFT + 1, 1, 0),
-	SOC_DAPM_SINGLE("LINEIN2 Switch", MAX9856_MIX_OUT,
-		MAX9856_MIX_OUT_MXOUTR_SHIFT + 2, 1, 0),
 	SOC_DAPM_SINGLE("DAC Switch", MAX9856_MIX_OUT,
+		MAX9856_MIX_OUT_MXOUTR_SHIFT, 1, 0),
+	SOC_DAPM_SINGLE("LINEIN2 Switch", MAX9856_MIX_OUT,
+		MAX9856_MIX_OUT_MXOUTR_SHIFT + 1, 1, 0),
+	SOC_DAPM_SINGLE("LINEIN1 Switch", MAX9856_MIX_OUT,
+		MAX9856_MIX_OUT_MXOUTR_SHIFT + 2, 1, 0),
+	SOC_DAPM_SINGLE("MIC PGA Switch", MAX9856_MIX_OUT,
 		MAX9856_MIX_OUT_MXOUTR_SHIFT + 3, 1, 0),
 };
 
 /* Left Input Mixer Switch */
 static const struct snd_kcontrol_new max9856_lin_mixer_controls[] = {
-//	SOC_DAPM_SINGLE("None", MAX9856_MIX_IN_L, 0, 0x1f, 1),
-	SOC_DAPM_SINGLE("AUXIN Switch", MAX9856_MIX_IN_L, 0, 1, 0),
-	SOC_DAPM_SINGLE("LINEIN1 Switch", MAX9856_MIX_IN_L, 1, 1, 0),
+	SOC_DAPM_SINGLE("MICR Switch", MAX9856_MIX_IN_L, 0, 1, 0),
+	SOC_DAPM_SINGLE("MICL Switch", MAX9856_MIX_IN_L, 1, 1, 0),
 	SOC_DAPM_SINGLE("LINEIN2 Switch", MAX9856_MIX_IN_L, 2, 1, 0),
-	SOC_DAPM_SINGLE("MICL Switch", MAX9856_MIX_IN_L, 3, 1, 0),
-	SOC_DAPM_SINGLE("MICR Switch", MAX9856_MIX_IN_L, 4, 1, 0),
+	SOC_DAPM_SINGLE("LINEIN1 Switch", MAX9856_MIX_IN_L, 3, 1, 0),
+	SOC_DAPM_SINGLE("AUXIN Switch", MAX9856_MIX_IN_L, 4, 1, 0),
 };
 
 /* Right Input Mixer Switch */
 static const struct snd_kcontrol_new max9856_rin_mixer_controls[] = {
-//	SOC_DAPM_SINGLE("None", MAX9856_MIX_IN_L, 0, 0x1f, 1),
-	SOC_DAPM_SINGLE("AUXIN Switch", MAX9856_MIX_IN_R, 0, 1, 0),
-	SOC_DAPM_SINGLE("LINEIN1 Switch", MAX9856_MIX_IN_R, 1, 1, 0),
+	SOC_DAPM_SINGLE("MICR Switch", MAX9856_MIX_IN_R, 0, 1, 0),
+	SOC_DAPM_SINGLE("MICL Switch", MAX9856_MIX_IN_R, 1, 1, 0),
 	SOC_DAPM_SINGLE("LINEIN2 Switch", MAX9856_MIX_IN_R, 2, 1, 0),
-	SOC_DAPM_SINGLE("MICL Switch", MAX9856_MIX_IN_R, 3, 1, 0),
-	SOC_DAPM_SINGLE("MICR Switch", MAX9856_MIX_IN_R, 4, 1, 0),
+	SOC_DAPM_SINGLE("LINEIN1 Switch", MAX9856_MIX_IN_R, 3, 1, 0),
+	SOC_DAPM_SINGLE("AUXIN Switch", MAX9856_MIX_IN_R, 4, 1, 0),
 };
 
 
 static const struct snd_soc_dapm_widget max9856_dapm_widgets[] = {
-	SND_SOC_DAPM_SUPPLY("DIGEN", MAX9856_PM, MAX9856_PM_DIGEN_SHIFT, 0, NULL, 0),
-	SND_SOC_DAPM_DAC("DACL", NULL, MAX9856_PM, MAX9856_PM_DALEN_SHIFT, 0),
-	SND_SOC_DAPM_DAC("DACR", NULL, MAX9856_PM, MAX9856_PM_DAREN_SHIFT, 0),
-	SND_SOC_DAPM_DAC("ADCL", NULL, MAX9856_PM, MAX9856_PM_ADLEN_SHIFT, 0),
-	SND_SOC_DAPM_DAC("ADCR", NULL, MAX9856_PM, MAX9856_PM_ADREN_SHIFT, 0),
+	SND_SOC_DAPM_DAC("DACL", "HiFi Playback", MAX9856_PM, MAX9856_PM_DALEN_SHIFT, 0),
+	SND_SOC_DAPM_DAC("DACR", "HiFi Playback", MAX9856_PM, MAX9856_PM_DAREN_SHIFT, 0),
+	SND_SOC_DAPM_ADC("ADCL", NULL, MAX9856_PM, MAX9856_PM_ADLEN_SHIFT, 0),
+	SND_SOC_DAPM_ADC("ADCR", NULL, MAX9856_PM, MAX9856_PM_ADREN_SHIFT, 0),
 	SND_SOC_DAPM_OUTPUT("OUTL"),
 	SND_SOC_DAPM_OUTPUT("OUTR"),
 	SND_SOC_DAPM_OUTPUT("HPL"),
@@ -216,10 +227,6 @@ static const struct snd_soc_dapm_route max9856_dapm_routes[] = {
 	{"OUTR", NULL, "Right Output Mixer"},
 
 	/* Supplies */
-	{"ADCL", NULL, "DIGEN"},
-	{"ADCR", NULL, "DIGEN"},
-	{"DACL", NULL, "DIGEN"},
-	{"DACR", NULL, "DIGEN"},
 };
 
 static int max9856_hw_params(struct snd_pcm_substream *substream,
@@ -444,7 +451,6 @@ static int max9856_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	snd_soc_update_bits(codec, MAX9856_PM, MAX9856_PM_SHDN_SHIFT, MAX9856_PM_SHDN_SHIFT);
 	return 0;
 }
 
