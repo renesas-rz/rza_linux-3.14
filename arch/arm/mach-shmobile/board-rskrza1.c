@@ -521,7 +521,7 @@ static struct edt_ft5x06_platform_data ft5216_pdata __initdata = {
 
 static const struct i2c_board_info i2c0_devices[] __initconst = {
 	{
-		I2C_BOARD_INFO("edt-ft5x06", 0x38),
+		I2C_BOARD_INFO("ft5x06-ts", 0x38),
 		.platform_data = &ft5216_pdata,
 		.irq		= 33,
 	},
