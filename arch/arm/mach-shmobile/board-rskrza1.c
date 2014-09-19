@@ -527,6 +527,14 @@ static const struct i2c_board_info i2c0_devices[] __initconst = {
 	},
 };
 
+/* Init TC_IRQ1 as input */
+static void __init gpio_irq_init(void) {
+	/* Set for low edge trigger */
+	void __iomem *irc1 = IOMEM(0xfcfef802);
+	__raw_writew((__raw_readw(irc1) & ~(0x3 << 2)), irc1);
+	r7s72100_pfc_pin_assign(P4_9, ALT8, DIIO_PBDC_DIS);  /* IRQ1 */
+}
+
 static struct at24_platform_data eeprom_pdata = {
 	.byte_len = 2048,
 	.page_size = 16,
@@ -1146,6 +1154,8 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P4_1, ALT8, DIIO_PBDC_DIS);	/* MMC DAT5 */
 	r7s72100_pfc_pin_assign(P4_2, ALT8, DIIO_PBDC_DIS);	/* MMC DAT6*/
 	r7s72100_pfc_pin_assign(P4_3, ALT8, DIIO_PBDC_DIS);	/* MMC DAT7 */
+
+	gpio_irq_init();
 
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
