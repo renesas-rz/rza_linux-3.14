@@ -451,6 +451,8 @@ static int max9856_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
+	snd_soc_write(codec, MAX9856_PM, 0xbf);
+
 	return 0;
 }
 
