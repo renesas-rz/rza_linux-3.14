@@ -1175,8 +1175,10 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&nor_flash_info);
 	platform_device_register_full(&pwm0_info);
 	platform_device_register_full(&pwm_backlight_info);
+#ifndef CONFIG_XIP_KERNEL
 	platform_device_register_full(&spibsc0_info);
 	platform_device_register_full(&spibsc1_info);
+#endif
 	platform_device_register_full(&adc0_info);
 	platform_device_register_full(&mmc_info);
 	platform_device_register_full(&sdhi0_info);
