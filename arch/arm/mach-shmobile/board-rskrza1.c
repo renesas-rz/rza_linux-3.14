@@ -689,23 +689,6 @@ static struct flash_platform_data spibsc1_flash_pdata = {
 	.type = "s25fl512s",
 };
 
-static struct spi_board_info spi_devices[] __initdata = {
-	{
-		/* SPI Flash0 */
-		.modalias = "m25p80",
-		.bus_num = 5,
-		.chip_select = 0,
-		.platform_data = &spibsc0_flash_pdata,
-	},
-	{
-		/* SPI Flash1 */
-		.modalias = "m25p80",
-		.bus_num = 6,
-		.chip_select = 0,
-		.platform_data = &spibsc1_flash_pdata,
-	},
-};
-
 /* PWM */
 static const struct resource pwm_resources[] __initconst = {
 	DEFINE_RES_MEM(0xfcff0200, 0x4c),	/* mtu2_3,4 */
@@ -776,10 +759,24 @@ static struct spi_board_info rskrza1_spi_devices[] __initdata = {
 		.mode			= SPI_MODE_3,
 	},
 #endif
+	{
+		/* SPI Flash0 */
+		.modalias = "m25p80",
+		.bus_num = 5,
+		.chip_select = 0,
+		.platform_data = &spibsc0_flash_pdata,
+	},
+	{
+		/* SPI Flash1 */
+		.modalias = "m25p80",
+		.bus_num = 6,
+		.chip_select = 0,
+		.platform_data = &spibsc1_flash_pdata,
+	},
 };
 
 /* spibsc0 */
-static const struct sh_spibsc_info spibsc0_pdata __initconst = {
+static const struct sh_spibsc_info spibsc0_pdata = {
 	.bus_num	= 5,
 };
 
@@ -797,7 +794,7 @@ static const struct platform_device_info spibsc0_info __initconst = {
 };
 
 /* spibsc1 */
-static const struct sh_spibsc_info spibsc1_pdata __initconst = {
+static const struct sh_spibsc_info spibsc1_pdata = {
 	.bus_num	= 6,
 };
 
@@ -1154,12 +1151,20 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P4_1, ALT8, DIIO_PBDC_DIS);	/* MMC DAT5 */
 	r7s72100_pfc_pin_assign(P4_2, ALT8, DIIO_PBDC_DIS);	/* MMC DAT6*/
 	r7s72100_pfc_pin_assign(P4_3, ALT8, DIIO_PBDC_DIS);	/* MMC DAT7 */
-
+#else
+	r7s72100_pfc_pin_assign(P3_8, ALT7, DIIO_PBDC_DIS);	/* SDHI1 CD */
+	r7s72100_pfc_pin_assign(P3_9, ALT7, DIIO_PBDC_DIS);	/* SDHI1 WP */
+	r7s72100_pfc_pin_assign(P3_10, ALT7, DIIO_PBDC_DIS);	/* SDHI1 DAT1 */
+	r7s72100_pfc_pin_assign(P3_11, ALT7, DIIO_PBDC_DIS);	/* SDHI1 DAT0 */
+	r7s72100_pfc_pin_assign(P3_12, ALT7, DIIO_PBDC_DIS);	/* SDHI1 CLK */
+	r7s72100_pfc_pin_assign(P3_13, ALT7, DIIO_PBDC_DIS);	/* SDHI1 CMD */
+	r7s72100_pfc_pin_assign(P3_14, ALT7, DIIO_PBDC_DIS);	/* SDHI1 DAT3*/
+	r7s72100_pfc_pin_assign(P3_15, ALT7, DIIO_PBDC_DIS);	/* SDHI1 DAT2 */
+#endif
 	gpio_irq_init();
 
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
-	spi_register_board_info(spi_devices, ARRAY_SIZE(spi_devices));
 
 	platform_device_register_full(&jcu_info);
 	platform_device_register_full(&ostm_info);
