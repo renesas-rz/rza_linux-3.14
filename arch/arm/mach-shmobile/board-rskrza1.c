@@ -1151,16 +1151,7 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P4_1, ALT8, DIIO_PBDC_DIS);	/* MMC DAT5 */
 	r7s72100_pfc_pin_assign(P4_2, ALT8, DIIO_PBDC_DIS);	/* MMC DAT6*/
 	r7s72100_pfc_pin_assign(P4_3, ALT8, DIIO_PBDC_DIS);	/* MMC DAT7 */
-#else
-	r7s72100_pfc_pin_assign(P3_8, ALT7, DIIO_PBDC_DIS);	/* SDHI1 CD */
-	r7s72100_pfc_pin_assign(P3_9, ALT7, DIIO_PBDC_DIS);	/* SDHI1 WP */
-	r7s72100_pfc_pin_assign(P3_10, ALT7, DIIO_PBDC_DIS);	/* SDHI1 DAT1 */
-	r7s72100_pfc_pin_assign(P3_11, ALT7, DIIO_PBDC_DIS);	/* SDHI1 DAT0 */
-	r7s72100_pfc_pin_assign(P3_12, ALT7, DIIO_PBDC_DIS);	/* SDHI1 CLK */
-	r7s72100_pfc_pin_assign(P3_13, ALT7, DIIO_PBDC_DIS);	/* SDHI1 CMD */
-	r7s72100_pfc_pin_assign(P3_14, ALT7, DIIO_PBDC_DIS);	/* SDHI1 DAT3*/
-	r7s72100_pfc_pin_assign(P3_15, ALT7, DIIO_PBDC_DIS);	/* SDHI1 DAT2 */
-#endif
+
 	gpio_irq_init();
 
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
