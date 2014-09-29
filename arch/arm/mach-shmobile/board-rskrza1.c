@@ -844,6 +844,8 @@ static const struct resource sh_mmcif_resources[] __initconst = {
 };
 
 static const struct sh_mmcif_plat_data sh_mmcif_pdata __initconst = {
+	.sup_pclk	= 0,
+	.ccs_unsupported = true,
 	.ocr		= MMC_VDD_32_33,
 	.caps		= MMC_CAP_4_BIT_DATA |
 			  MMC_CAP_8_BIT_DATA |
