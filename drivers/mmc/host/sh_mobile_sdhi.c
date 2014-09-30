@@ -30,10 +30,19 @@
 #include <linux/mfd/tmio.h>
 #include <linux/sh_dma.h>
 #include <linux/delay.h>
+#ifdef CONFIG_RZA1_DMAE
+#include <linux/platform_data/dma-rza1.h>
+#endif
 
 #include "tmio_mmc.h"
 
 #define EXT_ACC           0xe4
+
+#ifdef CONFIG_RZA1_DMAE
+#define sh_mobile_sdhi_filter	rza1dma_chan_filter
+#else
+#define sh_mobile_sdhi_filter	shdma_chan_filter
+#endif
 
 struct sh_mobile_sdhi_of_data {
 	unsigned long tmio_flags;
@@ -194,7 +203,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	}
 
 	dma_priv->alignment_shift = 1; /* 2-byte alignment */
-	dma_priv->filter = shdma_chan_filter;
+	dma_priv->filter = sh_mobile_sdhi_filter;
 
 	mmc_data->dma = dma_priv;
 
