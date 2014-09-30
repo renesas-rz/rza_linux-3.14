@@ -862,7 +862,7 @@ static const struct platform_device_info mmc_info __initconst = {
 };
 
 /* SDHI0 */
-static const struct sh_mobile_sdhi_info sdhi0_pdata __initconst = {
+static struct sh_mobile_sdhi_info sdhi0_pdata = {
 	.dma_slave_tx	= RZA1DMA_SLAVE_SDHI0_TX,
 	.dma_slave_rx	= RZA1DMA_SLAVE_SDHI0_RX,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
@@ -871,7 +871,7 @@ static const struct sh_mobile_sdhi_info sdhi0_pdata __initconst = {
 };
 
 static const struct resource sdhi0_resources[] __initconst = {
-	DEFINE_RES_MEM_NAMED(0xe804e000, 0x100, "SDHIO"),
+	DEFINE_RES_MEM_NAMED(0xe804e000, 0x100, "SDHI0"),
 	DEFINE_RES_IRQ_NAMED(gic_iid(302), SH_MOBILE_SDHI_IRQ_CARD_DETECT),
 	DEFINE_RES_IRQ_NAMED(gic_iid(303), SH_MOBILE_SDHI_IRQ_SDCARD),
 	DEFINE_RES_IRQ_NAMED(gic_iid(304), SH_MOBILE_SDHI_IRQ_SDIO),
@@ -884,6 +884,32 @@ static const struct platform_device_info sdhi0_info __initconst = {
 	.num_res	= ARRAY_SIZE(sdhi0_resources),
 	.data		= &sdhi0_pdata,
 	.size_data	= sizeof(sdhi0_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+/* SDHI1 */
+static struct sh_mobile_sdhi_info sdhi1_pdata = {
+	.dma_slave_tx	= RZA1DMA_SLAVE_SDHI1_TX,
+	.dma_slave_rx	= RZA1DMA_SLAVE_SDHI1_RX,
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
+	.tmio_ocr_mask	= MMC_VDD_32_33,
+	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+};
+
+static const struct resource sdhi1_resources[] __initconst = {
+	DEFINE_RES_MEM_NAMED(0xe804e800, 0x100, "SDHI1"),
+	DEFINE_RES_IRQ_NAMED(gic_iid(305), SH_MOBILE_SDHI_IRQ_CARD_DETECT),
+	DEFINE_RES_IRQ_NAMED(gic_iid(306), SH_MOBILE_SDHI_IRQ_SDCARD),
+	DEFINE_RES_IRQ_NAMED(gic_iid(307), SH_MOBILE_SDHI_IRQ_SDIO),
+};
+
+static const struct platform_device_info sdhi1_info __initconst = {
+	.name		= "sh_mobile_sdhi",
+	.id		= 1,
+	.res		= sdhi1_resources,
+	.num_res	= ARRAY_SIZE(sdhi1_resources),
+	.data		= &sdhi1_pdata,
+	.size_data	= sizeof(sdhi1_pdata),
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
@@ -1142,6 +1168,7 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P4_6, ALT5, DIIO_PBDC_EN);	/* SSIRxD0 */
 	r7s72100_pfc_pin_assign(P4_7, ALT5, SWIO_OUT_PBDCEN);	/* SSITxD0 */
 
+#if 0
 	r7s72100_pfc_pin_assign(P3_8, ALT8, DIIO_PBDC_DIS);	/* MMC CD */
 	r7s72100_pfc_pin_assign(P3_10, ALT8, DIIO_PBDC_DIS);	/* MMC DAT1 */
 	r7s72100_pfc_pin_assign(P3_11, ALT8, DIIO_PBDC_DIS);	/* MMC DAT0 */
@@ -1153,7 +1180,16 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P4_1, ALT8, DIIO_PBDC_DIS);	/* MMC DAT5 */
 	r7s72100_pfc_pin_assign(P4_2, ALT8, DIIO_PBDC_DIS);	/* MMC DAT6*/
 	r7s72100_pfc_pin_assign(P4_3, ALT8, DIIO_PBDC_DIS);	/* MMC DAT7 */
-
+#else
+	r7s72100_pfc_pin_assign(P3_8, ALT7, DIIO_PBDC_DIS);	/* SDHI1 CD */
+	r7s72100_pfc_pin_assign(P3_9, ALT7, DIIO_PBDC_DIS);	/* SDHI1 WP */
+	r7s72100_pfc_pin_assign(P3_10, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT1 */
+	r7s72100_pfc_pin_assign(P3_11, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT0 */
+	r7s72100_pfc_pin_assign(P3_12, ALT7, DIIO_PBDC_DIS);	/* SDHI1 CLK */
+	r7s72100_pfc_pin_assign(P3_13, ALT7, DIIO_PBDC_EN);	/* SDHI1 CMD */
+	r7s72100_pfc_pin_assign(P3_14, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT3*/
+	r7s72100_pfc_pin_assign(P3_15, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT2 */
+#endif
 	gpio_irq_init();
 
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
@@ -1178,8 +1214,14 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&spibsc1_info);
 #endif
 	platform_device_register_full(&adc0_info);
-	platform_device_register_full(&mmc_info);
 	platform_device_register_full(&sdhi0_info);
+
+#if 0
+	platform_device_register_full(&mmc_info);
+#else
+	platform_device_register_full(&sdhi1_info);
+#endif
+
 	platform_device_register_full(&vdc5fb_info);
 
 	if (usbgs == 0) {
