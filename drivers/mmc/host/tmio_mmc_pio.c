@@ -38,6 +38,7 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/mmc/tmio.h>
+#include <linux/mmc/sdio.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
@@ -49,6 +50,22 @@
 #include <linux/workqueue.h>
 
 #include "tmio_mmc.h"
+
+#if defined(CONFIG_ARCH_R7S72100) && \
+    (defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE))
+#define RZA1_SDHI 1
+static inline void sd_ctrl_read32_rep(struct tmio_mmc_host *host, int addr,
+		u32 *buf, int count)
+{
+	readsl(host->ctl + (addr << host->pdata->bus_shift), buf, count);
+}
+
+static inline void sd_ctrl_write32_rep(struct tmio_mmc_host *host, int addr,
+		u32 *buf, int count)
+{
+	writesl(host->ctl + (addr << host->pdata->bus_shift), buf, count);
+}
+#endif
 
 void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i)
 {
@@ -164,24 +181,24 @@ static void tmio_mmc_clk_stop(struct tmio_mmc_host *host)
 	/* implicit BUG_ON(!res) */
 	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG) {
 		sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0000);
-		msleep(10);
+		usleep_range(10000, 11000);
 	}
 
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~0x0100 &
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
-	msleep(10);
+	usleep_range(10000, 11000);
 }
 
 static void tmio_mmc_clk_start(struct tmio_mmc_host *host)
 {
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, 0x0100 |
 		sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
-	msleep(10);
+	usleep_range(10000, 11000);
 
 	/* implicit BUG_ON(!res) */
 	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG) {
 		sd_ctrl_write16(host, CTL_CLK_AND_WAIT_CTL, 0x0100);
-		msleep(10);
+		usleep_range(10000, 11000);
 	}
 }
 
@@ -192,11 +209,11 @@ static void tmio_mmc_reset(struct tmio_mmc_host *host)
 	/* implicit BUG_ON(!res) */
 	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG)
 		sd_ctrl_write16(host, CTL_RESET_SDIO, 0x0000);
-	msleep(10);
+	usleep_range(10000, 11000);
 	sd_ctrl_write16(host, CTL_RESET_SD, 0x0001);
 	if (host->pdata->flags & TMIO_MMC_HAVE_HIGH_REG)
 		sd_ctrl_write16(host, CTL_RESET_SDIO, 0x0001);
-	msleep(10);
+	usleep_range(10000, 11000);
 }
 
 static void tmio_mmc_reset_work(struct work_struct *work)
@@ -236,6 +253,10 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 	host->data = NULL;
 	host->force_pio = false;
 
+#if defined(CONFIG_ARCH_R7S72100)
+	tmio_mmc_enable_dma(host, true);
+#endif
+
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	tmio_mmc_reset(host);
@@ -264,6 +285,9 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	host->cmd = NULL;
 	host->data = NULL;
 	host->force_pio = false;
+#if defined(CONFIG_ARCH_R7S72100)
+	tmio_mmc_enable_dma(host, true);
+#endif
 
 	cancel_delayed_work(&host->delayed_reset_work);
 
@@ -380,9 +404,19 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 
 	/* Transfer the data */
 	if (data->flags & MMC_DATA_READ)
+#if defined(CONFIG_ARCH_R7S72100)
+		sd_ctrl_read32_rep(host, CTL_SD_DATA_PORT, (u32 *)buf,
+					count >> 2);
+#else
 		sd_ctrl_read16_rep(host, CTL_SD_DATA_PORT, buf, count >> 1);
+#endif
 	else
+#if defined(CONFIG_ARCH_R7S72100)
+		sd_ctrl_write32_rep(host, CTL_SD_DATA_PORT, (u32 *)buf,
+					count >> 2);
+#else
 		sd_ctrl_write16_rep(host, CTL_SD_DATA_PORT, buf, count >> 1);
+#endif
 
 	host->sg_off += count;
 

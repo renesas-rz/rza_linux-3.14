@@ -74,6 +74,9 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 
 	if (sg->length < TMIO_MMC_MIN_DMA_LEN) {
 		host->force_pio = true;
+#if defined(CONFIG_ARCH_R7S72100)
+		tmio_mmc_enable_dma(host, false);
+#endif
 		return;
 	}
 
@@ -107,6 +110,9 @@ pio:
 		tmio_mmc_enable_dma(host, false);
 		if (ret >= 0)
 			ret = -EIO;
+#if defined(CONFIG_ARCH_R7S72100)
+		tmio_mmc_enable_dma(host, false);
+#endif
 		host->chan_rx = NULL;
 		dma_release_channel(chan);
 		/* Free the Tx channel too */
@@ -151,6 +157,9 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 
 	if (sg->length < TMIO_MMC_MIN_DMA_LEN) {
 		host->force_pio = true;
+#if defined(CONFIG_ARCH_R7S72100)
+		tmio_mmc_enable_dma(host, false);
+#endif
 		return;
 	}
 
@@ -188,6 +197,9 @@ pio:
 		tmio_mmc_enable_dma(host, false);
 		if (ret >= 0)
 			ret = -EIO;
+#if defined(CONFIG_ARCH_R7S72100)
+		tmio_mmc_enable_dma(host, false);
+#endif
 		host->chan_tx = NULL;
 		dma_release_channel(chan);
 		/* Free the Rx channel too */
