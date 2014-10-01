@@ -46,8 +46,8 @@ static const struct reg_default max9856_reg[] = {
 	{ 0x0b, 0x00 },
 	{ 0x0c, 0x00 },
 	{ 0x0d, 0x00 },
-	{ 0x0e, 0x00 },
-	{ 0x0f, 0x00 },
+	{ 0x0e, 0x08 },
+	{ 0x0f, 0x04 },
 	{ 0x10, 0x11 },
 	{ 0x11, 0x00 },
 	{ 0x12, 0x00 },
@@ -167,8 +167,8 @@ static const struct snd_kcontrol_new max9856_rin_mixer_controls[] = {
 static const struct snd_soc_dapm_widget max9856_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DACL", "HiFi Playback", MAX9856_PM, MAX9856_PM_DALEN_SHIFT, 0),
 	SND_SOC_DAPM_DAC("DACR", "HiFi Playback", MAX9856_PM, MAX9856_PM_DAREN_SHIFT, 0),
-	SND_SOC_DAPM_ADC("ADCL", NULL, MAX9856_PM, MAX9856_PM_ADLEN_SHIFT, 0),
-	SND_SOC_DAPM_ADC("ADCR", NULL, MAX9856_PM, MAX9856_PM_ADREN_SHIFT, 0),
+	SND_SOC_DAPM_ADC("ADCL", "HiFi Capture", MAX9856_PM, MAX9856_PM_ADLEN_SHIFT, 0),
+	SND_SOC_DAPM_ADC("ADCR", "HiFi Capture", MAX9856_PM, MAX9856_PM_ADREN_SHIFT, 0),
 	SND_SOC_DAPM_OUTPUT("OUTL"),
 	SND_SOC_DAPM_OUTPUT("OUTR"),
 	SND_SOC_DAPM_OUTPUT("HPL"),
@@ -226,7 +226,9 @@ static const struct snd_soc_dapm_route max9856_dapm_routes[] = {
 	{"OUTL", NULL, "Left Output Mixer"},
 	{"OUTR", NULL, "Right Output Mixer"},
 
-	/* Supplies */
+	/* ADC */
+	{"ADCL", NULL, "Left Input Mixer"},
+	{"ADCR", NULL, "Right Input Mixer"},
 };
 
 static int max9856_hw_params(struct snd_pcm_substream *substream,
@@ -419,7 +421,15 @@ static struct snd_soc_dai_driver max9856_dai = {
 		.rates = MAX9856_RATES,
 		.formats = MAX9856_FORMATS
 	},
+	.capture = {
+		.stream_name = "HiFi Capture",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = MAX9856_RATES,
+		.formats = MAX9856_FORMATS
+	},
 	.ops = &max9856_dai_ops,
+	.symmetric_rates = 1,
 };
 
 #ifdef CONFIG_PM
