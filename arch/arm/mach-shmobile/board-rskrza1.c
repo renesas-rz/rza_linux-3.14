@@ -1168,7 +1168,7 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P4_6, ALT5, DIIO_PBDC_EN);	/* SSIRxD0 */
 	r7s72100_pfc_pin_assign(P4_7, ALT5, SWIO_OUT_PBDCEN);	/* SSITxD0 */
 
-#if 0
+#ifndef CONFIG_MMC_SDHI
 	r7s72100_pfc_pin_assign(P3_8, ALT8, DIIO_PBDC_DIS);	/* MMC CD */
 	r7s72100_pfc_pin_assign(P3_10, ALT8, DIIO_PBDC_DIS);	/* MMC DAT1 */
 	r7s72100_pfc_pin_assign(P3_11, ALT8, DIIO_PBDC_DIS);	/* MMC DAT0 */
@@ -1216,7 +1216,7 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&adc0_info);
 	platform_device_register_full(&sdhi0_info);
 
-#if 0
+#ifndef CONFIG_MMC_SDHI
 	platform_device_register_full(&mmc_info);
 #else
 	platform_device_register_full(&sdhi1_info);
