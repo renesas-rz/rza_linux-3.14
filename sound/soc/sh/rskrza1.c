@@ -274,17 +274,25 @@ static int scu_set_ssi0_route(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int scu_get_ssi0_caproute(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = routeinfo->route_ssi[1];
+
+	return 0;
+}
+
 static int scu_set_ssi0_caproute(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	DBG_MSG("start:scu_set_ssi0_caproute");
-	if (routeinfo->route_ssi[0] == ucontrol->value.integer.value[0])
+	if (routeinfo->route_ssi[1] == ucontrol->value.integer.value[0])
 		return 0;
 
-	routeinfo->route_ssi[0] = ucontrol->value.integer.value[0];
+	routeinfo->route_ssi[1] = ucontrol->value.integer.value[0];
 
-	if (routeinfo->route_ssi[0])
+	if (routeinfo->route_ssi[1])
 		routeinfo->c_route |= RC_SSI0_MEM;
 	else
 		routeinfo->c_route &= ~RC_SSI0_MEM;
@@ -389,7 +397,7 @@ static const struct snd_kcontrol_new playback_controls[] = {
 
 static const struct snd_kcontrol_new capture_controls[] = {
 	SOC_ENUM_EXT("SSI0 CapControl", widget_switch_enum,
-	scu_get_ssi0_route, scu_set_ssi0_caproute),
+	scu_get_ssi0_caproute, scu_set_ssi0_caproute),
 	SOC_ENUM_EXT("SRC0 Control", widget_switch_enum,
 	scu_get_src0_route, scu_set_src0_route),
 };
