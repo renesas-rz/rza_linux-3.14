@@ -139,7 +139,13 @@ static inline void ts_evt_add(struct ft5x06_ts *ts,
 #endif
 	} else {
 		for (i = 0; i < buttons; i++) {
+#ifdef CONFIG_MACH_RSKRZA1
+			/* The X and Y are inverted on this LCD panel */
+			p[i].x = 800 - p[i].x;
+			p[i].y = 480 - p[i].y;
+#else
 			translate(&p[i].x, &p[i].y);
+#endif
 			/* Ignore duplicates reports */
 			if( (p[i].x == ts->last.x) && (p[i].y == ts->last.y))
 				continue;
