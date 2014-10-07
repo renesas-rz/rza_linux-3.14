@@ -54,6 +54,8 @@
 #include <clocksource/sh_ostm.h>
 #include <video/vdc5fb.h>
 #include <sound/sh_scux.h>
+#include <linux/delay.h>
+#include <linux/kthread.h>
 
 static int usbgs = -1;
 static int __init early_usbgs(char *str)
@@ -269,9 +271,13 @@ static void vdc5fb_pinmux_tcon(struct pfc_pinmux_assign *pf, size_t num,
 			r7s72100_pfc_pin_assign(pf->port, pf->mode, DIIO_PBDC_DIS);
 }
 
+#define VDC5_BPP 32 /* 16bpp or 32bpp */
+#define VDC5_FBSIZE (800*480*VDC5_BPP/8)
+#define VDC5_FB_ADDR (0x20A00000 - VDC5_FBSIZE)	/* Place at end of internal RAM */
+
 static const struct resource vdc5fb_resources[VDC5FB_NUM_RES] __initconst = {
 	[0] = DEFINE_RES_MEM_NAMED(0xfcff6000, 0x00002000, "vdc5fb.0: reg"),
-	[1] = DEFINE_RES_MEM_NAMED(0x60200000, 0x00400000, "vdc5fb.0: fb"),
+	[1] = DEFINE_RES_MEM_NAMED(VDC5_FB_ADDR, VDC5_FBSIZE, "vdc5fb.0: fb"),
 	[2] = DEFINE_RES_NAMED(75, 23, "vdc5fb.0: irq", IORESOURCE_IRQ),
 };
 
@@ -307,7 +313,7 @@ static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata = {
 	.name			= "gwp0700cnwv04",
 	.videomode		= &videomode_gwp0700cnwv04,
 	.panel_icksel		= ICKSEL_P1CLK,
-	.bpp			= 32,
+	.bpp			= VDC5_BPP,
 	.panel_width		= 154,	/* mm, unused */
 	.panel_height		= 86,	/* mm, unused */
 	.flm_max		= 1,
@@ -332,6 +338,7 @@ static const struct platform_device_info vdc5fb_info __initconst = {
 	.num_res	= ARRAY_SIZE(vdc5fb_resources),
 	.data		= &vdc5fb_gwp0700cnwv04_pdata,
 	.size_data	= sizeof(vdc5fb_gwp0700cnwv04_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),	/* only needed if not hardcoding fb */
 };
 
 /* JCU */
@@ -344,7 +351,7 @@ static const struct uio_info jcu_platform_pdata __initconst = {
 static const struct resource jcu_resources[] __initconst = {
 	DEFINE_RES_MEM_NAMED(0xe8017000, 0x1000, "jcu:reg"), /* for JCU of RZ */
 	DEFINE_RES_MEM_NAMED(0xfcfe0000, 0x2000, "jcu:rstreg clkreg"), /* Use STBCR6 & SWRSTCR2 */
-	DEFINE_RES_MEM_NAMED(0x60900000, 0x100000, "jcu:iram"), /* (Non cacheable 1MB) */
+	DEFINE_RES_MEM_NAMED(0x20200000, 0x100000, "jcu:iram"), /* (Non cacheable 1MB) */
 };
 
 static const struct platform_device_info jcu_info __initconst = {
@@ -579,28 +586,28 @@ static const struct platform_device_info rtc_info __initconst = {
 /* NOR Flash */
 static struct mtd_partition nor_flash_partitions[] __initdata = {
 	{
-		.name		= "u-boot",
+		.name		= "nor_u-boot",
 		.offset		= 0x00000000,
 		.size		= SZ_512K,
 		.mask_flags	= MTD_WRITEABLE,
 	},
 	{
-		.name		= "u-boot_env",
+		.name		= "nor_u-boot_env",
 		.offset		= MTDPART_OFS_APPEND,
 		.size		= SZ_256K,
 	},
 	{
-		.name		= "dtb",
+		.name		= "nor_dtb",
 		.offset		= MTDPART_OFS_APPEND,
 		.size		= SZ_256K,
 	},
 	{
-		.name		= "kernel",
+		.name		= "nor_kernel",
 		.offset		= MTDPART_OFS_APPEND,
 		.size		= SZ_4M,
 	},
 	{
-		.name		= "data",
+		.name		= "nor_data",
 		.offset		= MTDPART_OFS_APPEND,
 		.size		= MTDPART_SIZ_FULL,
 	},
@@ -619,7 +626,7 @@ static const struct resource nor_flash_resources[] __initconst = {
 static const struct platform_device_info nor_flash_info __initconst = {
 	.parent		= &platform_bus,
 	.name		= "physmap-flash",
-	.id		= -1,
+	.id		= 1,
 	.res		= nor_flash_resources,
 	.num_res	= ARRAY_SIZE(nor_flash_resources),
 	.data		= &nor_flash_data,
@@ -628,6 +635,7 @@ static const struct platform_device_info nor_flash_info __initconst = {
 };
 
 /* SPI NOR Flash */
+/* Single Flash only */
 static struct mtd_partition spibsc0_flash_partitions[] = {
 	{
 		.name		= "spibsc0_loader",
@@ -674,7 +682,41 @@ static struct flash_platform_data spibsc1_flash_pdata = {
 	.type = "s25fl512s",
 };
 
-/* PWM */
+/* QSPI Flash (Memory Map Mode, read only) */
+/* Dual Flash */
+static struct mtd_partition qspi_flash_partitions[] __initdata = {
+	{
+		.name		= "qspi_rootfs",
+		.offset		= 0x00800000,
+		.size		= 64 * SZ_1M - 0x00800000,
+	},
+};
+
+static const struct physmap_flash_data qspi_flash_data __initconst = {
+	.width		= 4,
+	.probe_type	= "map_rom",
+	.parts		= qspi_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(qspi_flash_partitions),
+};
+
+static const struct resource qspi_flash_resources[] __initconst = {
+	DEFINE_RES_MEM(0x18000000, SZ_64M),
+};
+
+static const struct platform_device_info qspi_flash_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "physmap-flash",
+	.id		= 0,
+	.res		= qspi_flash_resources,
+	.num_res	= ARRAY_SIZE(qspi_flash_resources),
+	.data		= &qspi_flash_data,
+	.size_data	= sizeof(qspi_flash_data),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+/* PWM Pin (Pin TIOC4A only) */
+/* RSKRZA1 does not have TIOC4A attached to anything */
+#if 0
 static const struct resource pwm_resources[] __initconst = {
 	DEFINE_RES_MEM(0xfcff0200, 0x4c),	/* mtu2_3,4 */
 	DEFINE_RES_MEM(0xfcff0280, 0x6),	/* mtu2 share regs */
@@ -706,6 +748,7 @@ static const struct platform_device_info pwm_backlight_info __initconst = {
 	.data		= &pwm_backlight_pdata,
 	.size_data	= sizeof(pwm_backlight_pdata),
 };
+#endif
 
 /* RSPI */
 #define RSPI_RESOURCE(idx, baseaddr, irq)				\
@@ -1128,6 +1171,7 @@ static const struct platform_device_info scux_info __initconst = {
 	.res		= scux_resources,
 };
 
+
 static void __init rskrza1_add_standard_devices(void)
 {
 #ifdef CONFIG_CACHE_L2X0
@@ -1180,7 +1224,9 @@ static void __init rskrza1_add_standard_devices(void)
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
 
+#ifndef CONFIG_XIP_KERNEL	/* TODO: Uses too much internal RAM */
 	platform_device_register_full(&jcu_info);
+#endif
 	platform_device_register_full(&ostm_info);
 	platform_device_register_full(&dma_info);
 	platform_device_register_full(&alsa_soc_info);
@@ -1191,12 +1237,20 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&riic2_info);
 	platform_device_register_full(&riic3_info);
 	platform_device_register_full(&rtc_info);
-	platform_device_register_full(&nor_flash_info);
-	platform_device_register_full(&pwm0_info);
-	platform_device_register_full(&pwm_backlight_info);
-#ifndef CONFIG_XIP_KERNEL
+
+#if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SPI_SH_SPIBSC)
+	/* Need to disable both spibsc channels if using memory mapped QSPI */
 	platform_device_register_full(&spibsc0_info);
 	platform_device_register_full(&spibsc1_info);
+#else
+	platform_device_register_full(&qspi_flash_info);
+#endif
+
+	platform_device_register_full(&nor_flash_info);
+#if 0 /* For refernce only */
+	platform_device_register_full(&pwm0_info);
+	platform_device_register_full(&pwm_backlight_info);
+	pwm_add_table(pwm_lookup, ARRAY_SIZE(pwm_lookup));
 #endif
 	platform_device_register_full(&adc0_info);
 	platform_device_register_full(&sdhi0_info);
@@ -1230,13 +1284,36 @@ static void __init rskrza1_add_standard_devices(void)
 	spi_register_board_info(rskrza1_spi_devices,
 				ARRAY_SIZE(rskrza1_spi_devices));
 
-
-	pwm_add_table(pwm_lookup, ARRAY_SIZE(pwm_lookup));
 }
+
+static int heartbeat(void * data)
+{
+	u8 index = 0;
+	u8 value;
+	int ret;
+	static const u8 pattern[8] = {7,6,5,3,7,3,5,6};
+
+	while(1) {
+
+		/* Register address 1 is the Output Contorl register */
+		ret = rza1_i2c_read_byte(3, 0x20, 0x01, &value);
+		value &= ~0x7;
+		value |= pattern[index++];
+		index &= 0x7;
+
+		if( !ret )
+			rza1_i2c_write_byte(3, 0x20, 0x01, value);
+
+		msleep_interruptible(250);
+	}
+
+	return 0;
+}
+
 static void __init rskrza1_init_late(void)
 {
 	/* Make SCIF4 availible. */
-	/* Done here because we have to wait till i2c ready */
+	/* Done here because we have to wait till i2c driver is ready */
 #if (defined CONFIG_SPI_RSPI) && !(defined CONFIG_SH_ETH)
 	{
 		int i;
@@ -1269,6 +1346,9 @@ static void __init rskrza1_init_late(void)
 			printk("%s: ERROR: Failed to set pins for RSPI4 usage\n",__func__);
 	}
 #endif
+
+	/* Start heardbeat kernel thread */
+	kthread_run(heartbeat, NULL,"heartbeat");
 }
 
 
