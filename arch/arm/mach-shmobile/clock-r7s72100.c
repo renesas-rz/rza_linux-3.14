@@ -159,9 +159,7 @@ enum {
 	MSTP115,
 	MSTP107, MSTP106, MSTP105, MSTP104, MSTP103,
 	MSTP97, MSTP96, MSTP95, MSTP94,
-#ifndef CONFIG_XIP_KERNEL
 	MSTP92, MSTP93,
-#endif
 	MSTP91, MSTP90,
 	MSTP84, MSTP81, MSTP74,
 	MSTP71, MSTP70,
@@ -189,7 +187,13 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP96] = SH_CLK_MSTP8(&peripheral0_clk, STBCR9, 6, 0), /* RIIC1 */
 	[MSTP95] = SH_CLK_MSTP8(&peripheral0_clk, STBCR9, 5, 0), /* RIIC2 */
 	[MSTP94] = SH_CLK_MSTP8(&peripheral0_clk, STBCR9, 4, 0), /* RIIC3 */
-#ifndef CONFIG_XIP_KERNEL
+#if 1 /* Keep SPIBSC0 and SPIBSC1 clocks always on */
+	/* Because this IP block can also be used without a driver, we don't
+	   want to register the clock souce because it might be shut off
+	   if the system thinks no driver is using it */
+	[MSTP93] = SH_CLK_MSTP8(&bus_clk, STBCR12, 7, 0), /* UNUSED REGISTER BIT */
+	[MSTP92] = SH_CLK_MSTP8(&bus_clk, STBCR12, 7, 0), /* UNUSED REGISTER BIT */
+#else
 	[MSTP93] = SH_CLK_MSTP8(&bus_clk, STBCR9, 3, 0), /* SPIBSC0 */
 	[MSTP92] = SH_CLK_MSTP8(&bus_clk, STBCR9, 2, 0), /* SPIBSC1 */
 #endif
@@ -236,10 +240,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("rspi-rz.2", &mstp_clks[MSTP105]),
 	CLKDEV_DEV_ID("rspi-rz.3", &mstp_clks[MSTP104]),
 	CLKDEV_DEV_ID("rspi-rz.4", &mstp_clks[MSTP103]),
-#ifndef CONFIG_XIP_KERNEL
 	CLKDEV_DEV_ID("spibsc.0", &mstp_clks[MSTP93]),
 	CLKDEV_DEV_ID("spibsc.1", &mstp_clks[MSTP92]),
-#endif
 	CLKDEV_DEV_ID("i2c-riic.0", &mstp_clks[MSTP97]),
 	CLKDEV_DEV_ID("i2c-riic.1", &mstp_clks[MSTP96]),
 	CLKDEV_DEV_ID("i2c-riic.2", &mstp_clks[MSTP95]),
