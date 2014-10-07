@@ -189,23 +189,8 @@ static const struct rza1_dma_pdata dma_pdata __initconst = {
 static const struct resource rza1_dma_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe8200000, 0x1000),
 	DEFINE_RES_MEM(0xfcfe1000, 0x1000),
-	DEFINE_RES_IRQ(gic_iid(41)),
-	DEFINE_RES_IRQ(gic_iid(42)),
-	DEFINE_RES_IRQ(gic_iid(43)),
-	DEFINE_RES_IRQ(gic_iid(44)),
-	DEFINE_RES_IRQ(gic_iid(45)),
-	DEFINE_RES_IRQ(gic_iid(46)),
-	DEFINE_RES_IRQ(gic_iid(47)),
-	DEFINE_RES_IRQ(gic_iid(48)),
-	DEFINE_RES_IRQ(gic_iid(49)),
-	DEFINE_RES_IRQ(gic_iid(50)),
-	DEFINE_RES_IRQ(gic_iid(51)),
-	DEFINE_RES_IRQ(gic_iid(52)),
-	DEFINE_RES_IRQ(gic_iid(53)),
-	DEFINE_RES_IRQ(gic_iid(54)),
-	DEFINE_RES_IRQ(gic_iid(55)),
-	DEFINE_RES_IRQ(gic_iid(56)),
-	DEFINE_RES_IRQ(gic_iid(57)),
+	DEFINE_RES_NAMED(gic_iid(41), 16, NULL, IORESOURCE_IRQ),
+	DEFINE_RES_IRQ(gic_iid(57)),	/* DMAERR */
 };
 
 static const struct platform_device_info dma_info  __initconst = {
