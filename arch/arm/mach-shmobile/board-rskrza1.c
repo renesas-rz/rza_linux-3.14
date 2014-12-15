@@ -329,6 +329,35 @@ static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata = {
 		[LCD_TCON6]	= TCON_SEL_UNUSED,	/* UD_INV */
 	},
 	.pinmux			= vdc5fb_pinmux_gwp0700cnwv04,
+	.layers			= {
+		/* Graphics 2 - Image Synthesizer */
+		/* Full LCD Panel - will be /dev/fb0 */
+		[2].xres	= 800,
+		[2].yres	= 480,
+		[2].x_offset	= 0,
+		[2].y_offset	= 0,
+#if VDC5_BPP == 16
+		[2].format	= GR_FORMAT(GR_FORMAT_RGB565) | GR_RDSWA(6),
+#else
+		[2].format	= GR_FORMAT(GR_FORMAT_ARGB8888) | GR_RDSWA(4),
+#endif
+		[2].bpp		= VDC5_BPP,
+		[2].base	= VDC5_FB_ADDR,
+		[2].blend	 = 0,
+
+#if 0 /* SAMPLE */
+		/* Graphics 3 - Image Synthesizer */
+		/* Layer 3 - floating layer (Alpha blending) */
+		[3].xres	= 200,
+		[3].yres	= 200,
+		[3].x_offset	= 100,
+		[3].y_offset	= 50,
+		[3].format	= GR_FORMAT(GR_FORMAT_ARGB8888) | GR_RDSWA(4),
+		[3].bpp		= 32,
+		[3].base	= 0x20000000 + (10 * SZ_1M) - (200 * 200 * 4), /* End of internal RAM */
+		[3].blend	= 1,
+#endif
+	},
 };
 
 static const struct platform_device_info vdc5fb_info __initconst = {

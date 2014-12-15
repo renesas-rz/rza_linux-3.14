@@ -74,6 +74,35 @@ enum {				/* index */
 #define	OUT_FORMAT_RGB666	1
 #define	OUT_FORMAT_RGB565	2
 
+/* Frame buffer pixel format (see register GRn_FLM6) for GR0-GR3 */
+#define	GR_RDSWA(x)		(((x) & 0x7u) << 10)
+#define GR_YCC_SWAP(x) 		(((x) & 0xfu) << 13)
+#define	GR_FORMAT(x)		(((x) & 0xfu) << 28)
+enum {
+	GR_FORMAT_RGB565,
+	GR_FORMAT_RGB888,
+	GR_FORMAT_ARGB1555,
+	GR_FORMAT_ARGB4444,
+	GR_FORMAT_ARGB8888,
+	GR_FORMAT_CLUT8,
+	GR_FORMAT_CLUT4,
+	GR_FORMAT_CLUT1,
+	GR_FORMAT_YCbCr422,
+	GR_FORMAT_YCbCr444,
+	GR_FORMAT_RGBA5551,
+};
+
+struct vdc5fb_layer {
+	u32 xres;
+	u32 yres;
+	u32 x_offset;
+	u32 y_offset;
+	u32 base;
+	u32 bpp;
+	u32 format;	/* Will be OR-ed with GR_FLM6 */
+	u32 blend;	/* blend with lower layer or not */
+};
+
 /* board-specific data */
 struct vdc5fb_pdata {
 	const char *name;
@@ -92,6 +121,8 @@ struct vdc5fb_pdata {
 	unsigned char tcon_sel[LCD_MAX_TCON];
 /* board specific setting function */
 	int (*pinmux)(struct platform_device *pdev);
+
+	struct vdc5fb_layer layers[4];
 };
 #endif /* __KERNEL__ */
 

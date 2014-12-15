@@ -38,6 +38,9 @@
 
 /************************************************************************/
 
+/* Options */
+//#define OUTPUT_IMAGE_GENERATOR	/* Uncomment to enable to use OIR to display graphics */
+
 #define PALETTE_NR 16
 
 #define	PIX_FORMAT_RGB565	0
@@ -350,8 +353,10 @@ static int vdc5fb_init_sync(struct vdc5fb_priv *priv)
 	vdc5fb_write(priv, SC0_SCL0_FRC2, 0);
 	vdc5fb_write(priv, SC1_SCL0_FRC1, 0);
 	vdc5fb_write(priv, SC1_SCL0_FRC2, 0);
+#ifdef OUTPUT_IMAGE_GENERATOR
 	vdc5fb_write(priv, OIR_SCL0_FRC1, 0);
 	vdc5fb_write(priv, OIR_SCL0_FRC2, 0);
+#endif
 
 	/* Set the same free-running hsync/vsync period to
 	 * all scalers (sc0, sc1 and oir). The hsync/vsync
@@ -362,17 +367,22 @@ static int vdc5fb_init_sync(struct vdc5fb_priv *priv)
 	tmp |= SC_RES_FV(priv->res_fv);
 	vdc5fb_write(priv, SC0_SCL0_FRC4, tmp);
 	vdc5fb_write(priv, SC1_SCL0_FRC4, tmp);
+#ifdef OUTPUT_IMAGE_GENERATOR
 	vdc5fb_write(priv, OIR_SCL0_FRC4, tmp);
-
+#endif
 	tmp = (SC_RES_FLD_DLY_SEL | SC_RES_VSDLY(1));
 	vdc5fb_write(priv, SC0_SCL0_FRC5, tmp);
 	vdc5fb_write(priv, SC1_SCL0_FRC5, tmp);
 	tmp = SC_RES_VSDLY(1);
+#ifdef OUTPUT_IMAGE_GENERATOR
 	vdc5fb_write(priv, OIR_SCL0_FRC5, tmp);
+#endif
 
 	vdc5fb_write(priv, SC0_SCL0_FRC3, SC_RES_VS_SEL);
 	vdc5fb_write(priv, SC1_SCL0_FRC3, (SC_RES_VS_SEL | SC_RES_VS_IN_SEL));
+#ifdef OUTPUT_IMAGE_GENERATOR
 	vdc5fb_write(priv, OIR_SCL0_FRC3, 0);
+#endif
 	/* Note that OIR is not enabled here */
 
 	/* Set full-screen size */
@@ -380,23 +390,32 @@ static int vdc5fb_init_sync(struct vdc5fb_priv *priv)
 	tmp |= SC_RES_F_VS(mode->vsync_len + mode->upper_margin);
 	vdc5fb_write(priv, SC0_SCL0_FRC6, tmp);
 	vdc5fb_write(priv, SC1_SCL0_FRC6, tmp);
+#ifdef OUTPUT_IMAGE_GENERATOR
 	vdc5fb_write(priv, OIR_SCL0_FRC6, tmp);
+#endif
 	tmp = SC_RES_F_HW(mode->xres);
 	tmp |= SC_RES_F_HS(mode->hsync_len + mode->left_margin);
 	vdc5fb_write(priv, SC0_SCL0_FRC7, tmp);
 	vdc5fb_write(priv, SC1_SCL0_FRC7, tmp);
-	vdc5fb_write(priv, OIR_SCL0_FRC7, tmp);
 
+#ifdef OUTPUT_IMAGE_GENERATOR
+	vdc5fb_write(priv, OIR_SCL0_FRC7, tmp);
+#endif
 	/* Cascade on */
 	vdc5fb_setbits(priv, GR1_AB1, GR1_CUS_CON_ON);
 	/* Set GR0 as current, GR1 as underlaying */
-	vdc5fb_setbits(priv, GR_VIN_AB1, GR_VIN_SCL_UND_SEL);
+	/* Set GR1 as current, GR0 as underlaying */
+	tmp = vdc5fb_read(priv, GR_VIN_AB1);
+	tmp &= ~GR_VIN_SCL_UND_SEL;
+	vdc5fb_write(priv, GR_VIN_AB1, tmp);
 
 	/* Do update here. */
 	tmp = (SC_SCL_UPDATE | SC_SCL_VEN_B);
 	vdc5fb_update_regs(priv, SC0_SCL0_UPDATE, tmp, 1);
 	vdc5fb_update_regs(priv, SC1_SCL0_UPDATE, tmp, 1);
+#ifdef OUTPUT_IMAGE_GENERATOR
 	vdc5fb_update_regs(priv, OIR_SCL0_UPDATE, tmp, 1);
+#endif
 	tmp = (GR_UPDATE | GR_P_VEN);
 	vdc5fb_update_regs(priv, GR1_UPDATE, tmp, 1);
 	vdc5fb_update_regs(priv, GR_VIN_UPDATE, tmp, 1);
@@ -409,17 +428,76 @@ static int vdc5fb_init_scalers(struct vdc5fb_priv *priv)
 	struct fb_videomode *mode = priv->videomode;
 	u32 tmp;
 
-	/* Disable scaler 0 */
-	vdc5fb_write(priv, SC0_SCL0_DS1, 0);
-	vdc5fb_write(priv, SC0_SCL0_US1, 0);
-	vdc5fb_write(priv, SC0_SCL0_OVR1, D_SC_RES_BK_COL);
+	/* Enable and setup scaler 0 */
+	if( priv->pdata->layers[0].xres ) {
+		vdc5fb_write(priv, SC0_SCL0_FRC3, SC_RES_VS_SEL);
+		vdc5fb_update_regs(priv, SC0_SCL0_UPDATE, SC_SCL_UPDATE, 1);
 
-	/* Disable scaler 1 */
-	vdc5fb_write(priv, SC1_SCL0_DS1, 0);
-	vdc5fb_write(priv, SC1_SCL0_US1, 0);
-	vdc5fb_write(priv, SC1_SCL0_OVR1, D_SC_RES_BK_COL);
+		vdc5fb_write(priv, SC0_SCL0_DS1, 0);
+		vdc5fb_write(priv, SC0_SCL0_US1, 0);
+		vdc5fb_write(priv, SC0_SCL0_OVR1, D_SC_RES_BK_COL);
+
+		tmp = (mode->vsync_len + mode->upper_margin - 1) << 16;
+		tmp |= mode->yres;
+		vdc5fb_write(priv, SC0_SCL0_DS2, tmp);
+		vdc5fb_write(priv, SC0_SCL0_US2, tmp);
+
+		tmp = (mode->hsync_len + mode->left_margin) << 16;
+		tmp |= mode->xres;
+		vdc5fb_write(priv, SC0_SCL0_DS3, tmp);
+		vdc5fb_write(priv, SC0_SCL0_US3, tmp);
+
+		tmp = mode->yres << 16;
+		tmp |= mode->xres;
+		vdc5fb_write(priv, SC0_SCL0_DS7, tmp);
+
+		tmp = SC_RES_IBUS_SYNC_SEL;
+		vdc5fb_write(priv, SC0_SCL0_US8, tmp);
+		vdc5fb_write(priv, SC0_SCL0_OVR1, D_SC_RES_BK_COL);
+	}
+	else {
+		/* Disable scaler 0 */
+		vdc5fb_write(priv, SC0_SCL0_DS1, 0);
+		vdc5fb_write(priv, SC0_SCL0_US1, 0);
+		vdc5fb_write(priv, SC0_SCL0_OVR1, D_SC_RES_BK_COL);
+	}
+
+	/* Enable and setup scaler 1 */
+	if( priv->pdata->layers[1].xres ) {
+		vdc5fb_write(priv, SC1_SCL0_FRC3, SC_RES_VS_SEL);
+		vdc5fb_update_regs(priv, SC1_SCL0_UPDATE, SC_SCL_UPDATE, 1);
+
+		vdc5fb_write(priv, SC1_SCL0_DS1, 0);
+		vdc5fb_write(priv, SC1_SCL0_US1, 0);
+		vdc5fb_write(priv, SC1_SCL0_OVR1, D_SC_RES_BK_COL);
+
+		tmp = (mode->vsync_len + mode->upper_margin - 1) << 16;
+		tmp |= mode->yres;
+		vdc5fb_write(priv, SC1_SCL0_DS2, tmp);
+		vdc5fb_write(priv, SC1_SCL0_US2, tmp);
+
+		tmp = (mode->hsync_len + mode->left_margin) << 16;
+		tmp |= mode->xres;
+		vdc5fb_write(priv, SC1_SCL0_DS3, tmp);
+		vdc5fb_write(priv, SC1_SCL0_US3, tmp);
+
+		tmp = mode->yres << 16;
+		tmp |= mode->xres;
+		vdc5fb_write(priv, SC1_SCL0_DS7, tmp);
+
+		tmp = SC_RES_IBUS_SYNC_SEL;
+		vdc5fb_write(priv, SC1_SCL0_US8, tmp);
+		vdc5fb_write(priv, SC1_SCL0_OVR1, D_SC_RES_BK_COL);
+	}
+	else {
+		/* Disable scaler 1 */
+		vdc5fb_write(priv, SC1_SCL0_DS1, 0);
+		vdc5fb_write(priv, SC1_SCL0_US1, 0);
+		vdc5fb_write(priv, SC1_SCL0_OVR1, D_SC_RES_BK_COL);
+	}
 
 	/* Enable and setup OIR scaler */
+#ifdef OUTPUT_IMAGE_GENERATOR
 	vdc5fb_write(priv, OIR_SCL0_FRC3, OIR_RES_EN);
 	vdc5fb_update_regs(priv, OIR_SCL0_UPDATE, SC_SCL_UPDATE, 1);
 
@@ -443,49 +521,133 @@ static int vdc5fb_init_scalers(struct vdc5fb_priv *priv)
 
 	tmp = SC_RES_IBUS_SYNC_SEL;
 	vdc5fb_write(priv, OIR_SCL0_US8, tmp);
-
+#endif
 	return 0;
 }
+
+#define GR_UPDATE_OFFSET	0x00
+#define GR_FLM_RD_OFFSET	0x04
+#define GR_FLM1_OFFSET		0x08
+#define GR_FLM2_OFFSET		0x0C
+#define GR_FLM3_OFFSET		0x10
+#define GR_FLM4_OFFSET		0x14
+#define GR_FLM5_OFFSET		0x18
+#define GR_FLM6_OFFSET		0x1C
+#define GR_AB1_OFFSET		0x20
+#define GR_AB2_OFFSET		0x24
+#define GR_AB3_OFFSET		0x28
+#define GR_BASE_OFFSET		0x4C
+
+#define vdc5fb_iowrite32(d,r) iowrite32((u32) d, (void *) r)
 
 static int vdc5fb_init_graphics(struct vdc5fb_priv *priv)
 {
 	struct fb_videomode *mode = priv->videomode;
 	u32 tmp;
+	struct vdc5fb_layer *layer;
+	u32 update_addr[4];
+	int i;
 
-	/* Graphics 0 (Scaler 0) */
-	vdc5fb_write(priv, GR0_FLM_RD, 0);
-	tmp = vdc5fb_read(priv, GR0_AB1);
-	tmp &= GR_AB1_MASK;
-	tmp |= GR_DISP_SEL(0);		/* background */
-	vdc5fb_write(priv, GR0_AB1, tmp);
-	vdc5fb_write(priv, GR0_BASE, D_GR_BASE);
+	/* Need at least 1 graphic layer for /dev/fb0 */
+	for (i=0;i<4;i++)
+		if( priv->pdata->layers[i].xres )
+			break;
+	if( i == 4 )
+	{
+		printk("\n\n\n%s: You need to define at least 1 'layer' to be used as /dev/fb0\n\n\n",__func__);
+		return -1;
+	}
 
-	/* Graphics 1 (Scaler 1) */
-	vdc5fb_write(priv, GR1_FLM_RD, 0);
-	tmp = vdc5fb_read(priv, GR1_AB1);
-	tmp &= GR_AB1_MASK;
-	tmp |= GR_DISP_SEL(0);		/* background */
-	vdc5fb_write(priv, GR1_AB1, tmp);
-	vdc5fb_write(priv, GR1_BASE, D_GR_BASE);
+	update_addr[0] = (u32)priv->base + vdc5fb_offsets[GR0_UPDATE];
+	update_addr[1] = (u32)priv->base + vdc5fb_offsets[GR1_UPDATE];
+	update_addr[2] = (u32)priv->base + vdc5fb_offsets[GR2_UPDATE];
+	update_addr[3] = (u32)priv->base + vdc5fb_offsets[GR3_UPDATE];
 
-	/* Graphics 2 (Image Synthsizer) */
-	vdc5fb_write(priv, GR2_FLM_RD, 0);
-	vdc5fb_write(priv, GR2_AB1, GR_DISP_SEL(0));
-	vdc5fb_write(priv, GR3_BASE, D_GR_BASE);
+	for (i=0;i<4;i++) {
+		/* Set Background color (really for debugging only) */
+		switch (i) {
+			case 0:	tmp = 0x00800000;	// GR0 = Green
+				break;
+			case 1:	tmp = 0x00008000;	// GR1 = Blue
+				break;
+			case 2:	tmp = 0x00000080;	// GR2 = red
+				break;
+			case 4:	tmp = 0x00008080;	// GR3 = purple
+		}
+		vdc5fb_iowrite32(tmp, update_addr[i] + GR_BASE_OFFSET);	/* Background color (0-G-B-R) */
 
-	/* Graphics 3 (Image Synthsizer) */
-	vdc5fb_write(priv, GR3_FLM_RD, 0);
-	vdc5fb_write(priv, GR3_AB1, GR_DISP_SEL(0));
-	vdc5fb_write(priv, GR2_BASE, D_GR_BASE);
+		layer = &priv->pdata->layers[i];
+		if( layer->xres == 0 ) {
+			/* not used */
+			vdc5fb_iowrite32(0, update_addr[i] + GR_FLM_RD_OFFSET);
+			if( i == 0 )
+				vdc5fb_iowrite32(0, update_addr[i] + GR_AB1_OFFSET);	/* background graphics display */
+			else
+				vdc5fb_iowrite32(1, update_addr[i] + GR_AB1_OFFSET);	/* Lower-layer graphics display */
+			continue;
+		}
+
+		vdc5fb_iowrite32(GR_R_ENB, update_addr[i] + GR_FLM_RD_OFFSET);
+		vdc5fb_iowrite32(GR_FLM_SEL(1), update_addr[i] + GR_FLM1_OFFSET); /* scalers MUST use FLM_SEL */
+		vdc5fb_iowrite32(layer->base, update_addr[i] + GR_FLM2_OFFSET);	/* frame buffer address*/
+		tmp = GR_LN_OFF(layer->xres * (layer->bpp / 8));	/* length of each line (and Frame Number=0)*/
+		vdc5fb_iowrite32(tmp, update_addr[i] + GR_FLM3_OFFSET);
+		tmp = GR_FLM_LOOP(layer->yres - 1);
+		tmp |= GR_FLM_LNUM(layer->yres - 1);
+		vdc5fb_iowrite32(tmp, update_addr[i] + GR_FLM5_OFFSET);		/* lines per frame */
+		tmp = layer->format;
+		tmp |= GR_HW(layer->xres - 1);
+		vdc5fb_iowrite32(tmp, update_addr[i] + GR_FLM6_OFFSET);	/* frame format */
+
+		tmp = 0;
+		if( layer->blend )
+			tmp |= GR_DISP_SEL(3);		/* Blended display of lower-layer graphics and current graphics */
+		else
+			tmp |= GR_DISP_SEL(2);		/* Current graphics display */
+		vdc5fb_iowrite32(tmp, update_addr[i] + GR_AB1_OFFSET);
+
+		tmp = GR_GRC_VW(layer->yres);
+		tmp |= GR_GRC_VS(mode->vsync_len + mode->upper_margin + layer->y_offset);
+		vdc5fb_iowrite32(tmp, update_addr[i] + GR_AB2_OFFSET);
+
+		tmp = GR_GRC_HW(layer->xres);
+		tmp |= GR_GRC_HS(mode->hsync_len + mode->left_margin + layer->x_offset);
+		vdc5fb_iowrite32(tmp, update_addr[i] + GR_AB3_OFFSET);
+	}
 
 	/* Graphics VIN (Image Synthsizer) */
+	/* Scaler 0 and Scaler 1 are blended together using this */
+	/* GR0 = lower */
+	/* GR1 = current */
 	tmp = vdc5fb_read(priv, GR_VIN_AB1);
 	tmp &= GR_AB1_MASK;
-	tmp |= GR_DISP_SEL(0);		/* background */
+	if ( priv->pdata->layers[0].xres != 0 ) {
+		if ( priv->pdata->layers[1].xres == 0 )
+			// GR0 used, GR1 not used
+			tmp |= GR_DISP_SEL(1);		/* lower only*/
+		else
+			// GR0 used, GR1 used
+			tmp |= GR_DISP_SEL(3);		/* blend */
+	}
+	else if ( priv->pdata->layers[1].xres != 0 )
+	{
+			// GR0 not used, GR1 used
+			tmp |= GR_DISP_SEL(2);		/* current only */
+	}
 	vdc5fb_write(priv, GR_VIN_AB1, tmp);
-	vdc5fb_write(priv, GR_VIN_BASE, D_GR_BASE);
+	vdc5fb_write(priv, GR_VIN_BASE, 0x00FF00);	/* Background color (0-G-B-R) */
+
+	/* Set the LCD margins, other wise the pixels will be cliped
+	  (and background color will show through instead */
+	tmp = GR_GRC_VW(mode->yres);
+	tmp |= GR_GRC_VS(mode->vsync_len + mode->upper_margin);
+	vdc5fb_write(priv, GR_VIN_AB2, tmp);
+	tmp = GR_GRC_HW(mode->xres);
+	tmp |= GR_GRC_HS(mode->hsync_len + mode->left_margin);
+	vdc5fb_write(priv, GR_VIN_AB3, tmp);
 
 	/* Graphics OIR */
+#ifdef OUTPUT_IMAGE_GENERATOR
 	vdc5fb_write(priv, GR_OIR_FLM_RD, GR_R_ENB);
 	vdc5fb_write(priv, GR_OIR_FLM1, GR_FLM_SEL(1));
 	vdc5fb_write(priv, GR_OIR_FLM2, priv->dma_handle);
@@ -524,6 +686,8 @@ static int vdc5fb_init_graphics(struct vdc5fb_priv *priv)
 	vdc5fb_write(priv, GR_OIR_AB11, D_GR_AB11);
 
 	vdc5fb_write(priv, GR_OIR_BASE, D_GR_BASE);
+#endif
+
 
 	return 0;
 }
@@ -702,6 +866,7 @@ static int vdc5fb_update_all(struct vdc5fb_priv *priv)
 	tmp = (GR_P_VEN | GR_UPDATE);
 	vdc5fb_update_regs(priv, GR_VIN_UPDATE, tmp, 1);
 
+#ifdef OUTPUT_IMAGE_GENERATOR
 	tmp = (SC_SCL_VEN_A | SC_SCL_VEN_B | SC_SCL_UPDATE
 		| SC_SCL_VEN_C | SC_SCL_VEN_D);
 	vdc5fb_update_regs(priv, OIR_SCL0_UPDATE, tmp, 1);
@@ -709,6 +874,7 @@ static int vdc5fb_update_all(struct vdc5fb_priv *priv)
 
 	tmp = (GR_IBUS_VEN | GR_P_VEN | GR_UPDATE);
 	vdc5fb_update_regs(priv, GR_OIR_UPDATE, tmp, 1);
+#endif
 
 	tmp = OUTCNT_VEN;
 	vdc5fb_update_regs(priv, OUT_UPDATE, tmp, 1);
@@ -831,6 +997,7 @@ static int vdc5fb_get_contrast(struct vdc5fb_priv *priv,
 static int vdc5fb_put_frame(struct vdc5fb_priv *priv,
 	struct fbio_frame *param)
 {
+#ifdef OUTPUT_IMAGE_GENERATOR
 	struct vdc5fb_pdata *pdata = priv_to_pdata(priv);
 	uint32_t tmp;
 
@@ -842,13 +1009,14 @@ static int vdc5fb_put_frame(struct vdc5fb_priv *priv,
 	tmp |= GR_FLM_NUM(param->fr_num);
 	vdc5fb_write(priv, GR_OIR_FLM3, tmp);
 	vdc5fb_update_regs(priv, GR_OIR_UPDATE, GR_IBUS_VEN, 1);
-
+#endif
 	return 0;
 }
 
 static int vdc5fb_get_frame(struct vdc5fb_priv *priv,
 	struct fbio_frame *param)
 {
+#ifdef OUTPUT_IMAGE_GENERATOR
 	struct vdc5fb_pdata *pdata = priv_to_pdata(priv);
 	uint32_t tmp;
 
@@ -856,6 +1024,7 @@ static int vdc5fb_get_frame(struct vdc5fb_priv *priv,
 	param->fr_max = pdata->flm_max;
 	param->fr_num = (tmp & 0x3ffu);
 
+#endif
 	return 0;
 }
 
@@ -1069,6 +1238,7 @@ static int vdc5fb_set_par(struct fb_info *info)
 static int vdc5fb_pan_display(struct fb_var_screeninfo *var,
 	struct fb_info *info)
 {
+#ifdef OUTPUT_IMAGE_GENERATOR
 	struct vdc5fb_priv *priv = info->par;
 	unsigned long start, end;
 	u32 tmp;
@@ -1086,6 +1256,7 @@ static int vdc5fb_pan_display(struct fb_var_screeninfo *var,
 	vdc5fb_write(priv, GR_OIR_FLM2, priv->dma_handle + start);
 	tmp = (GR_IBUS_VEN | GR_P_VEN | GR_UPDATE);
 	vdc5fb_update_regs(priv, GR_OIR_UPDATE, tmp, 1);
+#endif
 
 /*	pm_runtime_put_sync();	*/
 	return 0;
