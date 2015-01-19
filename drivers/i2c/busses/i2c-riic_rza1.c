@@ -169,7 +169,7 @@
 #define ICBRL_SP400K	21
 #define ICBRL_SP1000K	14
 
-#define RIIC_CORE_PARAM_NUM_SLAVE_BUFFERS	16
+#define RIIC_CORE_PARAM_NUM_SLAVE_BUFFERS	0
 
 #define RIIC_NUM_CHANNELS	4
 
@@ -404,6 +404,7 @@ struct riic_data {
 	int			sending_addr;	/* for _AL or _NACK */
 
 	/* for slave mode */
+#if 0 /* NO SLAVE SUPPORT */
 	enum riic_slave_state	slave_state;
 	struct riic_core_packet	slv_rx_pkt[RIIC_CORE_PARAM_NUM_SLAVE_BUFFERS];
 	int			slv_rx_head;
@@ -414,6 +415,7 @@ struct riic_data {
 
 	/* status */
 	unsigned	slave_enabled:1;
+#endif
 
 	/* status for master mode */
 	unsigned	completed:1;
@@ -791,10 +793,12 @@ static int riic_master_is_sending_address(struct riic_data *rd)
 	return ret;
 }
 
+#if 0 /* NO SLAVE SUPPORT */
 static void riic_slave_start_rx_timer(struct riic_data *rd)
 {
 	mod_timer(&rd->slv_timer, jiffies + msecs_to_jiffies(rd->slv_timeout));
 }
+#endif
 
 static void riic_set_receive_ack(struct riic_data *rd, int ack)
 {
@@ -804,6 +808,7 @@ static void riic_set_receive_ack(struct riic_data *rd, int ack)
 		riic_set_bit(rd, ICMR3_ACKBT, RIIC_ICMR3);
 }
 
+#if 0 /* NO SLAVE SUPPORT */
 static void riic_slave_prepare(struct riic_data *rd)
 {
 	riic_set_bit(rd, ICIER_SPIE, RIIC_ICIER);
@@ -817,13 +822,16 @@ static void riic_slave_prepare(struct riic_data *rd)
 	riic_set_receive_ack(rd, 1);
 	riic_slave_start_rx_timer(rd);
 }
+#endif
 
 static void riic_irq_master_al(struct riic_data *rd, unsigned char icsr2)
 {
 	rd->state = RIIC_STATE_IDLE;
 	rd->sending_addr = riic_master_is_sending_address(rd);
 	riic_master_clean_icier(rd);
+#if 0 /* NO SLAVE SUPPORT */
 	riic_slave_prepare(rd);	/* enter RIIC_STATE_SLAVE */
+#endif
 	rd->pkt = NULL;
 	rd->aled = 1;
 	wake_up_interruptible(&rd->wait);
@@ -1043,7 +1051,9 @@ static void riic_irq_master_rdrf(struct riic_data *rd)
 static void riic_irq_master_start(struct riic_data *rd, unsigned char icsr2)
 {
 	if (!(riic_read(rd, RIIC_ICCR2) & ICCR2_MST)) {
+#if 0 /* NO SLAVE SUPPORT */
 		riic_slave_prepare(rd);
+#endif
 		return;
 	}
 
@@ -1145,7 +1155,9 @@ static void riic_irq_idle_start(struct riic_data *rd, unsigned char icsr2)
 		return;
 	}
 
+#if 0 /* NO SLAVE SUPPORT */
 	riic_slave_prepare(rd);
+#endif
 }
 
 static void riic_irq_idle(struct riic_data *rd, unsigned char icsr2)
