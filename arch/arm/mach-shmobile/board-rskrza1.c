@@ -57,6 +57,10 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 
+/* Board Options */
+//#define RSPI_TESTING	/* Uncomment for RSPI4 enabled on CN15 */
+
+
 static int usbgs = -1;
 static int __init early_usbgs(char *str)
 {
@@ -806,7 +810,7 @@ static const struct rspi_plat_data rspi_pdata __initconst = {
 
 
 static struct spi_board_info rskrza1_spi_devices[] __initdata = {
-#if (defined CONFIG_SPI_RSPI) && !(defined CONFIG_SH_ETH)
+#if defined(RSPI_TESTING)
 	{
 		/* spidev */
 		.modalias		= "spidev",
@@ -1261,10 +1265,11 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&alsa_soc_info);
 	platform_device_register_full(&scux_info);
 	platform_device_register_full(&ether_info);
-	platform_device_register_full(&riic0_info);
-	platform_device_register_full(&riic1_info);
-	platform_device_register_full(&riic2_info);
-	platform_device_register_full(&riic3_info);
+
+//	platform_device_register_full(&riic0_info);	/* Not used */
+//	platform_device_register_full(&riic1_info);	/* Not used */
+//	platform_device_register_full(&riic2_info);	/* Not used */
+	platform_device_register_full(&riic3_info);	/* Port Expander, EEPROM (MAC Addr), Audio Codec */
 	platform_device_register_full(&rtc_info);
 
 #if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SPI_SH_SPIBSC)
@@ -1303,11 +1308,13 @@ static void __init rskrza1_add_standard_devices(void)
 		platform_device_register_full(&r8a66597_usb_host1_info);
 	}
 
-	r7s72100_register_rspi(0);
-	r7s72100_register_rspi(1);
-	r7s72100_register_rspi(2);
-	r7s72100_register_rspi(3);
-	r7s72100_register_rspi(4);
+//	r7s72100_register_rspi(0);	/* Not used */
+//	r7s72100_register_rspi(1);	/* Not used */
+//	r7s72100_register_rspi(2);	/* Not used */
+//	r7s72100_register_rspi(3);	/* Not used */
+#if defined(RSPI_TESTING)
+	r7s72100_register_rspi(4);	/* Not used */
+#endif
 
 	/* Register SPI device information */
 	spi_register_board_info(rskrza1_spi_devices,
@@ -1341,9 +1348,9 @@ static int heartbeat(void * data)
 
 static void __init rskrza1_init_late(void)
 {
-	/* Make SCIF4 availible. */
+	/* Make RSPI4 availible. */
 	/* Done here because we have to wait till i2c driver is ready */
-#if (defined CONFIG_SPI_RSPI) && !(defined CONFIG_SH_ETH)
+#if defined(RSPI_TESTING) && (defined CONFIG_SPI_RSPI) && !(defined CONFIG_SH_ETH)
 	{
 		int i;
 		u8 value;

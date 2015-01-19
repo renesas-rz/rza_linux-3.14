@@ -45,14 +45,14 @@ static struct resource scif##index##_resources[] = {			\
 	DEFINE_RES_IRQ(irq),						\
 }									\
 
-R7S72100_SCIF(0, 0xe8007000, gic_iid(221));
-R7S72100_SCIF(1, 0xe8007800, gic_iid(225));
+//R7S72100_SCIF(0, 0xe8007000, gic_iid(221));	/* Not used */
+//R7S72100_SCIF(1, 0xe8007800, gic_iid(225));	/* Not used */
 R7S72100_SCIF(2, 0xe8008000, gic_iid(229));
-R7S72100_SCIF(3, 0xe8008800, gic_iid(233));
-R7S72100_SCIF(4, 0xe8009000, gic_iid(237));
-R7S72100_SCIF(5, 0xe8009800, gic_iid(241));
-R7S72100_SCIF(6, 0xe800a000, gic_iid(245));
-R7S72100_SCIF(7, 0xe800a800, gic_iid(249));
+//R7S72100_SCIF(3, 0xe8008800, gic_iid(233));	/* Not used */
+//R7S72100_SCIF(4, 0xe8009000, gic_iid(237));	/* Not used */
+//R7S72100_SCIF(5, 0xe8009800, gic_iid(241));	/* Not used */
+//R7S72100_SCIF(6, 0xe800a000, gic_iid(245));	/* Not used */
+//R7S72100_SCIF(7, 0xe800a800, gic_iid(249));	/* Not used */
 
 #define r7s72100_register_scif(index)					       \
 	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
@@ -83,14 +83,14 @@ static struct resource mtu2_0_resources[] __initdata = {
 
 void __init r7s72100_add_dt_devices(void)
 {
-	r7s72100_register_scif(0);
-	r7s72100_register_scif(1);
+//	r7s72100_register_scif(0);	/* Not used */
+//	r7s72100_register_scif(1);	/* Not used */
 	r7s72100_register_scif(2);
-	r7s72100_register_scif(3);
-	r7s72100_register_scif(4);
-	r7s72100_register_scif(5);
-	r7s72100_register_scif(6);
-	r7s72100_register_scif(7);
+//	r7s72100_register_scif(3);	/* Not used */
+//	r7s72100_register_scif(4);	/* Not used */
+//	r7s72100_register_scif(5);	/* Not used */
+//	r7s72100_register_scif(6);	/* Not used */
+//	r7s72100_register_scif(7);	/* Not used */
 	r7s72100_register_mtu2(0);
 }
 
