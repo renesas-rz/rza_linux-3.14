@@ -56,6 +56,7 @@
 #include <sound/sh_scux.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/irq.h>
 
 /* Board Options */
 //#define RSPI_TESTING	/* Uncomment for RSPI4 enabled on CN15 */
@@ -189,7 +190,11 @@ static const struct rza1_dma_slave_config rza1_dma_slaves[] = {
 static const struct rza1_dma_pdata dma_pdata __initconst = {
 	.slave		= rza1_dma_slaves,
 	.slave_num	= ARRAY_SIZE(rza1_dma_slaves),
-	.channel_num	= 16,
+#ifdef CONFIG_XIP_KERNEL
+	.channel_num	= 2,	/* Less channels means less RAM */
+#else
+	.channel_num	= 16,	/* 16 MAX channels */
+#endif
 };
 
 static const struct resource rza1_dma_resources[] __initconst = {
@@ -1204,6 +1209,89 @@ static const struct platform_device_info scux_info __initconst = {
 	.res		= scux_resources,
 };
 
+/* By default, the Linux ARM code will pre-allocated IRQ descriptors
+   based on the size (HW) of the GIC. For this device, that means
+   576 possible interrutps sources. This eats up a lot of RAM at
+   run-time that is pretty much wasted.
+   Therefore, use this 'whitelist' below to delete any pre-allocated
+   irq descriptors except those that is in this list to achive up to
+   400KB of RAM savings.
+*/
+struct irq_res {
+	int irq;	/* Starting IRQ number */
+	int count;	/* The number of consecutive IRQs */
+};
+struct irq_res const irq_keep_list[] __initconst = {
+	{41, 17},	/* RZA1_DMA */
+	{73, 1},	/* USB0 (host/device) */
+	{74, 1},	/* USB1 (host/device) */
+	{75, 23},	/* VDC0 */
+//	{99, 23},	/* VDC1 */
+	{126, 1},	/* JCU */
+	{134, 2},	/* OSTM */
+	{139, 1},	/* MTU2-TGI0A (Kernel jiffies) */
+//	{170, 2}, {146, 2},	/* ADC and MTU2-TGI1A */
+//	{189, 8},	/* RIIC_0 */
+//	{197, 8},	/* RIIC1 */
+//	{205, 8},	/* RIIC2 */
+	{213, 8},	/* RIIC3 */
+//	{221, 4},	/* SCIF0 */
+//	{225, 4},	/* SCIF1 */
+	{229, 4},	/* SCIF2 (Console) */
+//	{233, 4},	/* SCIF3 */
+//	{237, 4},	/* SCIF4 */
+//	{241, 4},	/* SCIF5 */
+//	{245, 4},	/* SCIF6 */
+//	{249, 4},	/* SCIF7 */
+//	{270, 3},	/* RSPI0 */
+//	{273, 3},	/* RSPI1 */
+//	{276, 3},	/* RSPI2 */
+//	{279, 3},	/* RSPI3 */
+//	{282, 3},	/* RSPI4 */
+	{299, 3},	/* MMC */
+//	{302, 3},	/* SDHI0 */
+	{305, 3},	/* SDHI1 */
+	{308, 3},	/* RTC */
+	{359, 1},	/* ETH */
+};
+
+static int irq_keep_all = 0;
+static int __init early_irq_keep_all(char *str)
+{
+	irq_keep_all = 1;
+	return 0;
+}
+early_param("irq_keep_all", early_irq_keep_all);
+
+/* Removes unused pre-allocated IRQ. */
+/* To skip this operation, add 'irq_keep_all' on the comamnd line */
+static void remove_irqs(void)
+{
+	int i,j;
+	int max = nr_irqs;
+	int keep;
+
+	if( irq_keep_all )
+		return;		/* Feature disabled by 'irq_keep_all */
+
+	/* Run through all allocated irq descriptors and delete
+	   the ones we are not using */
+	/* Skip 0 - 16 because they are the soft irqs */
+	for (i=17; i < max; i++) {
+		/* Is it one we want to keep? */
+		for ( j=0, keep=0 ; j < sizeof(irq_keep_list)/sizeof(struct irq_res); j++) {
+			if( i == irq_keep_list[j].irq ) {
+				keep = 1;
+				break;
+			}
+		}
+
+		if( keep )
+			i += irq_keep_list[j].count - 1; /* skip if multiple */
+		else
+			irq_free_descs(i, 1);		/* un-used irq */
+	}
+}
 
 static void __init rskrza1_add_standard_devices(void)
 {
@@ -1217,6 +1305,10 @@ static void __init rskrza1_add_standard_devices(void)
 	l2x0_init(IOMEM(0xfffee000), 0x00000000, 0xffffffff);	/* Leave as defaults */
 #endif
 #endif
+#if CONFIG_XIP_KERNEL
+	remove_irqs();
+#endif
+
 	r7s72100_clock_init();
 	r7s72100_pinmux_setup();
 	r7s72100_add_dt_devices();

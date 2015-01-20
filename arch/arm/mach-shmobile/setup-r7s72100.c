@@ -23,6 +23,7 @@
 #include <linux/of_platform.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_timer.h>
+#include <linux/dma-mapping.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <mach/r7s72100.h>
@@ -97,6 +98,12 @@ void __init r7s72100_add_dt_devices(void)
 void __init r7s72100_init_early(void)
 {
 	shmobile_setup_delay(400, 1, 3); /* Cortex-A9 @ 400MHz */
+
+#ifdef CONFIG_XIP_KERNEL
+	/* Set the size of our pre-allocated DMA buffer pool because the
+	   default is 256KB */
+	init_dma_coherent_pool_size(16 * SZ_1K);
+#endif
 }
 
 #ifdef CONFIG_USE_OF
