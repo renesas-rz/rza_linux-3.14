@@ -282,7 +282,8 @@ static void vdc5fb_pinmux_tcon(struct pfc_pinmux_assign *pf, size_t num,
 
 #define VDC5_BPP 32 /* 16bpp or 32bpp */
 #define VDC5_FBSIZE (800*480*VDC5_BPP/8)
-#define VDC5_FB_ADDR (0x20A00000 - VDC5_FBSIZE)	/* Place at end of internal RAM */
+/* Place at end of internal RAM, but on a PAGE boundry */
+#define VDC5_FB_ADDR ((0x20A00000 - VDC5_FBSIZE) & PAGE_MASK)
 
 static const struct resource vdc5fb_resources[VDC5FB_NUM_RES] __initconst = {
 	[0] = DEFINE_RES_MEM_NAMED(0xfcff6000, 0x00002000, "vdc5fb.0: reg"),
