@@ -1490,15 +1490,15 @@ static int vdc5fb_probe(struct platform_device *pdev)
 	info->var.hsync_len = pdata->videomode->hsync_len;
 	info->var.vsync_len = pdata->videomode->vsync_len;
 
+	error = register_framebuffer(info);
+	if (error < 0)
+		goto err4;
+
 	error = vdc5fb_start(priv);
 	if (error) {
 		dev_err(&pdev->dev, "cannot start hardware\n");
-		goto err4;
-	}
-
-	error = register_framebuffer(info);
-	if (error < 0)
 		goto err5;
+	}
 
 	dev_info(info->dev,
 		"registered %s as %ux%u @ %u Hz, %d bpp.\n",
@@ -1511,9 +1511,9 @@ static int vdc5fb_probe(struct platform_device *pdev)
 	return 0;
 
 err5:
-	unregister_framebuffer(priv->info);
-err4:
 	vdc5fb_stop(priv);
+err4:
+	unregister_framebuffer(priv->info);
 err3:
 	fb_dealloc_cmap(&info->cmap);
 	if (priv->fb_nofree)
