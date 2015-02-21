@@ -42,6 +42,7 @@ enum pfc_direction {
 	PORT_OUT_LOW,		/* Port Mode & Output direction & Low Level Output Pn = 0 */
 	DIR_OUT,
 	DIR_IN,			/* Port Mode or Software I/O Mode is Direction IN */
+	DIR_LVDS,
 };
 
 void r7s72100_add_dt_devices(void);

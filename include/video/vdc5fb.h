@@ -103,6 +103,40 @@ struct vdc5fb_layer {
 	u32 blend;	/* blend with lower layer or not */
 };
 
+/*! The clock input to vdc5 */
+enum {
+	OCKSEL_ICK = 0,
+	OCKSEL_PLL,
+	OCKSEL_PLL_DIV7,
+};
+
+/*! The clock input to frequency divider 1 */
+enum {
+	VDC5_LVDS_INCLK_SEL_IMG = 0,	/*!< Video image clock (VIDEO_X1) */
+	VDC5_LVDS_INCLK_SEL_DV_0,	/*!< Video image clock (DV_CLK 0) */
+	VDC5_LVDS_INCLK_SEL_DV_1,	/*!< Video image clock (DV_CLK 1) */
+	VDC5_LVDS_INCLK_SEL_EXT_0,	/*!< External clock (LCD_EXTCLK 0) */
+	VDC5_LVDS_INCLK_SEL_EXT_1,	/*!< External clock (LCD_EXTCLK 1) */
+	VDC5_LVDS_INCLK_SEL_PERI,	/*!< Peripheral clock 1 */
+	VDC5_LVDS_INCLK_SEL_NUM
+};
+
+enum {
+	VDC5_LVDS_NDIV_1 = 0,		/*!< Div 1 */
+	VDC5_LVDS_NDIV_2,		/*!< Div 2 */
+	VDC5_LVDS_NDIV_4,		/*!< Div 4 */
+	VDC5_LVDS_NDIV_NUM
+};
+
+/*! The frequency dividing value (NOD) for the output frequency */
+enum {
+	VDC5_LVDS_PLL_NOD_1 = 0,	/*!< Div 1 */
+	VDC5_LVDS_PLL_NOD_2,		/*!< Div 2 */
+	VDC5_LVDS_PLL_NOD_4,		/*!< Div 4 */
+	VDC5_LVDS_PLL_NOD_8,		/*!< Div 8 */
+	VDC5_LVDS_PLL_NOD_NUM
+};
+
 /* board-specific data */
 struct vdc5fb_pdata {
 	const char *name;

@@ -443,6 +443,14 @@ enum {
 	OUT_PDTHA,
 	OUT_CLK_PHASE,
 
+	/* LVDS */
+	LVDS_UPDATE,
+	LVDSFCL,
+	LCLKSELR,
+	LPLLSETR,
+	LPLLMONR,
+	LPHYACC,
+
 	/* SYSTEM CONTROLLER */
 	SYSCNT_INT1,
 	SYSCNT_INT2,
@@ -906,6 +914,14 @@ static unsigned long vdc5fb_offsets[VDC5FB_MAX_REGS] = {
 	[OUT_PDTHA]		= VDC5FB_OFFSET(0xFCFF7A14),
 	[OUT_CLK_PHASE]		= VDC5FB_OFFSET(0xFCFF7A24),
 
+	/* LVDS */
+	[LVDS_UPDATE]		= VDC5FB_OFFSET(0xFCFF7A30),
+	[LVDSFCL]		= VDC5FB_OFFSET(0xFCFF7A34),
+	[LCLKSELR]		= VDC5FB_OFFSET(0xFCFF7A50),
+	[LPLLSETR]		= VDC5FB_OFFSET(0xFCFF7A54),
+	[LPLLMONR]		= VDC5FB_OFFSET(0xFCFF7A58),
+	[LPHYACC]		= VDC5FB_OFFSET(0xFCFF7A5C),
+
 	/* SYSTEM CONTROLLER */
 	[SYSCNT_INT1]		= VDC5FB_OFFSET(0xFCFF7A80),
 	[SYSCNT_INT2]		= VDC5FB_OFFSET(0xFCFF7A84),
@@ -1090,23 +1106,49 @@ static const char *irq_names[VDC5FB_MAX_IRQS] = {
 /* OUT_UPDATE */
 #define	OUTCNT_VEN		(1u << 0)
 
+/* LVDS */
+#define LVDS_CLK_EN		(1u << 4)
+#define LVDS_PLL_PD		(1u << 0)
+#define LVDS_VDC_SEL		(1u << 1)
+#define LVDS_PLL_LD		(1u << 0)
+#define LVDS_LCLKSELR_MASK	(0x0703FF02u)
+#define LVDS_LPLLSETR_MASK	(0x07FF1F30u)
+
+#define LVDS_SET_IN_CLK_SEL(x)	(((x) & 0x7) << 24)
+#define LVDS_SET_IDIV(x)	(((x) & 0x3) << 16)
+#define LVDS_SET_TST(x)		(((x) & 0x3f) << 10)
+#define LVDS_SET_ODIV(x)	(((x) & 0x3) << 8)
+#define LVDS_SET_FD(x)		(((x) & 0x7ff) << 16)
+#define LVDS_SET_RD(x)		(((x) & 0x1f) << 8)
+#define LVDS_SET_OD(x)		(((x) & 0x3) << 4)
+
 /************************************************************************/
 /* READ / WRITE VDC5 REGISTERS */
 
 static void vdc5fb_write(struct vdc5fb_priv *priv, int reg, u32 data)
 {
+	unsigned long lvds_offset_correction = 0;
+
+	if ((priv->pdev->id) && (reg >= LVDS_UPDATE) && (reg <= LPHYACC))
+		lvds_offset_correction = VDC5FB_REG_SIZE;
+
 	if ((SYSCNT_PANEL_CLK == reg) || (SYSCNT_CLUT == reg))
 		iowrite16((u16)data, (priv->base + vdc5fb_offsets[reg]));
 	else
-		iowrite32((u32)data, (priv->base + vdc5fb_offsets[reg]));
+		iowrite32((u32)data, (priv->base + vdc5fb_offsets[reg] - lvds_offset_correction));
 }
 
 static unsigned long vdc5fb_read(struct vdc5fb_priv *priv, int reg)
 {
+	unsigned long lvds_offset_correction = 0;
+
+	if ((priv->pdev->id) && (reg >= LVDS_UPDATE) && (reg <= LPHYACC))
+		lvds_offset_correction = VDC5FB_REG_SIZE;
+
 	if ((SYSCNT_PANEL_CLK == reg) || (SYSCNT_CLUT == reg))
 		return ioread16(priv->base + vdc5fb_offsets[reg]);
 	else
-		return ioread32(priv->base + vdc5fb_offsets[reg]);
+		return ioread32(priv->base + vdc5fb_offsets[reg] - lvds_offset_correction);
 }
 
 static void vdc5fb_setbits(struct vdc5fb_priv *priv, int reg, u32 bits)
