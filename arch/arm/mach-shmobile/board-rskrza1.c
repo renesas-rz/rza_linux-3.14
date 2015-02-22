@@ -1223,6 +1223,15 @@ struct irq_res {
 	int count;	/* The number of consecutive IRQs */
 };
 struct irq_res const irq_keep_list[] __initconst = {
+//	{32, 1},	/* IRQ0 */
+	{33, 1},	/* IRQ1 (for ft5x06-ts Touchsreen) */
+//	{34, 1},	/* IRQ2 */
+//	{35, 1},	/* IRQ3 */
+//	{36, 1},	/* IRQ4 */
+//	{37, 1},	/* IRQ5 */
+//	{38, 1},	/* IRQ6 */
+//	{39, 1},	/* IRQ7 */
+//	{40, 1},	/* PL310ERR (L2 Cache error - not used) */
 	{41, 17},	/* RZA1_DMA */
 	{73, 1},	/* USB0 (host/device) */
 	{74, 1},	/* USB1 (host/device) */
@@ -1232,10 +1241,10 @@ struct irq_res const irq_keep_list[] __initconst = {
 	{134, 2},	/* OSTM */
 	{139, 1},	/* MTU2-TGI0A (Kernel jiffies) */
 //	{170, 2}, {146, 2},	/* ADC and MTU2-TGI1A */
-//	{189, 8},	/* RIIC_0 */
+	{189, 8},	/* RIIC0 (Touchscreen) */
 //	{197, 8},	/* RIIC1 */
 //	{205, 8},	/* RIIC2 */
-	{213, 8},	/* RIIC3 */
+	{213, 8},	/* RIIC3 (Port Expander, EEPROM (MAC Addr), Audio Codec) */
 //	{221, 4},	/* SCIF0 */
 //	{225, 4},	/* SCIF1 */
 	{229, 4},	/* SCIF2 (Console) */
@@ -1359,7 +1368,7 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&scux_info);
 	platform_device_register_full(&ether_info);
 
-//	platform_device_register_full(&riic0_info);	/* Not used */
+	platform_device_register_full(&riic0_info);	/* (Touchscreen) */
 //	platform_device_register_full(&riic1_info);	/* Not used */
 //	platform_device_register_full(&riic2_info);	/* Not used */
 	platform_device_register_full(&riic3_info);	/* Port Expander, EEPROM (MAC Addr), Audio Codec */
