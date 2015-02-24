@@ -212,6 +212,10 @@ struct vm_fault {
 					 */
 };
 
+#ifdef CONFIG_FS_XIP
+extern int xip_file_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
+#endif
+
 /*
  * These are the virtual MM functions - opening of an area, closing and
  * unmapping it (needed to keep files on disk up-to-date etc), pointer
