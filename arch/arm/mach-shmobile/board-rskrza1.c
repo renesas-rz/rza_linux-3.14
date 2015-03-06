@@ -1489,6 +1489,23 @@ static void __init rskrza1_init_late(void)
 	kthread_run(heartbeat, NULL,"heartbeat");
 }
 
+#define WTCSR 0
+#define WTCNT 2
+#define WRCSR 4
+static void rskrza1_restart(enum reboot_mode mode, const char *cmd)
+{
+	void *base = ioremap_nocache(0xFCFE0000, 0x10);
+
+	/* Dummy read (must read WRCSR:WOVF at least once before clearing) */
+	*(volatile uint8_t *)(base + WRCSR) = *(uint8_t *)(base + WRCSR);
+
+	*(volatile uint16_t *)(base + WRCSR) = 0xA500;	/* Clear WOVF */
+	*(volatile uint16_t *)(base + WRCSR) = 0x5A5F;	/* Reset Enable */
+	*(volatile uint16_t *)(base + WTCNT) = 0x5A00;	/* Counter to 00 */
+	*(volatile uint16_t *)(base + WTCSR) = 0xA578;	/* Start timer */
+
+	while(1); /* Wait for WDT overflow */
+}
 
 static const char * const rskrza1_boards_compat_dt[] __initconst = {
 	"renesas,rskrza1",
@@ -1501,4 +1518,5 @@ DT_MACHINE_START(RSKRZA1_DT, "rskrza1")
 	.init_late	= rskrza1_init_late,
 	.dt_compat	= rskrza1_boards_compat_dt,
 	.map_io		= rza1_map_io,
+	.restart	= rskrza1_restart,
 MACHINE_END
