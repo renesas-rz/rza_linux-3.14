@@ -1265,24 +1265,24 @@ struct irq_res const irq_keep_list[] __initconst = {
 	{359, 1},	/* ETH */
 };
 
-static int irq_keep_all = 0;
-static int __init early_irq_keep_all(char *str)
+static int rz_irq_trim = 0;
+static int __init early_rz_irq_trim(char *str)
 {
-	irq_keep_all = 1;
+	rz_irq_trim = 1;
 	return 0;
 }
-early_param("irq_keep_all", early_irq_keep_all);
+early_param("rz_irq_trim", early_rz_irq_trim);
 
 /* Removes unused pre-allocated IRQ. */
-/* To skip this operation, add 'irq_keep_all' on the comamnd line */
+/* This operation only occurs when 'rz_irq_trim' is on the boot command line */
 static void remove_irqs(void)
 {
 	int i,j;
 	int max = nr_irqs;
 	int keep;
 
-	if( irq_keep_all )
-		return;		/* Feature disabled by 'irq_keep_all */
+	if( !rz_irq_trim )
+		return;		/* Feature disabled if 'rz_irq_trim' not set */
 
 	/* Run through all allocated irq descriptors and delete
 	   the ones we are not using */
