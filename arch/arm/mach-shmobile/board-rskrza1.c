@@ -105,6 +105,11 @@ static struct map_desc rza1_io_desc[] __initdata = {
 
 void __init rza1_map_io(void)
 {
+#ifdef CONFIG_DEBUG_LL
+	/* Note: Becase we defined a .map_io handler, we must manually set our
+	   SCIF2 memory mapping here. see arch/arm/mm/mmu.c */
+	debug_ll_io_init();
+#endif
 	iotable_init(rza1_io_desc, ARRAY_SIZE(rza1_io_desc));
 }
 
