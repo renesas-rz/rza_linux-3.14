@@ -285,10 +285,23 @@ static void vdc5fb_pinmux_tcon(struct pfc_pinmux_assign *pf, size_t num,
 			r7s72100_pfc_pin_assign(pf->port, pf->mode, DIIO_PBDC_DIS);
 }
 
+#ifdef CONFIG_XIP_KERNEL
+#define VDC5_BPP 16 /* 16bpp or 32bpp */
+#define VDC5_FBSIZE (800*480*VDC5_BPP/8)
+/* Let the VDC5 driver carve out the frame buffer out of system memory during boot */
+#define VDC5_FB_ADDR 0	/* allcoate at probe */
+
+#else
 #define VDC5_BPP 32 /* 16bpp or 32bpp */
 #define VDC5_FBSIZE (800*480*VDC5_BPP/8)
+/* Assume we are using external SDRAM for system memory so we have all
+   the internal memory just for our LCD frame buffer */
 /* Place at end of internal RAM, but on a PAGE boundry */
 #define VDC5_FB_ADDR ((0x20A00000 - VDC5_FBSIZE) & PAGE_MASK)
+#endif
+
+/* Sample: Graphics 3 - Image Synthesizer */
+//uint8_t gr3_fb[ 200*200*4 ] __attribute__ ((aligned (PAGE_SIZE)));
 
 static const struct resource vdc5fb_resources[VDC5FB_NUM_RES] __initconst = {
 	[0] = DEFINE_RES_MEM_NAMED(0xfcff6000, 0x00002000, "vdc5fb.0: reg"),
@@ -369,7 +382,7 @@ static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata = {
 		[3].y_offset	= 50,
 		[3].format	= GR_FORMAT(GR_FORMAT_ARGB8888) | GR_RDSWA(4),
 		[3].bpp		= 32,
-		[3].base	= 0x20000000 + (10 * SZ_1M) - (200 * 200 * 4), /* End of internal RAM */
+		[3].base	= (u32)gr3_fb,
 		[3].blend	= 1,
 #endif
 	},
