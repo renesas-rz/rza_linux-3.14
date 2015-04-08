@@ -56,6 +56,12 @@ config SOC_CAMERA_OV6650
 	---help---
 	  This is a V4L2 SoC camera driver for the OmniVision OV6650 sensor
 
+config SOC_CAMERA_OV7670
+	tristate "ov7670 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov7670 camera driver
+
 config SOC_CAMERA_OV772X
 	tristate "ov772x camera support"
 	depends on SOC_CAMERA && I2C
