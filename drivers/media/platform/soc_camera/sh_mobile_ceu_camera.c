@@ -1936,6 +1936,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 		/* v4l2_device_register_subdev() took a reference too */
 		module_put(pcdev->csi2_sd->owner);
 	}
+	sh_mobile_ceu_clock_start(&pcdev->ici);
 
 	return 0;
 
