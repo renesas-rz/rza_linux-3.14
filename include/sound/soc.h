@@ -1173,10 +1173,17 @@ void snd_soc_util_exit(void);
 
 int snd_soc_of_parse_card_name(struct snd_soc_card *card,
 			       const char *propname);
+int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
+					  const char *propname);
+int snd_soc_of_parse_tdm_slot(struct device_node *np,
+			      unsigned int *slots,
+			      unsigned int *slot_width);
 int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 				   const char *propname);
 unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
-				     const char *prefix);
+				     const char *prefix,
+				     struct device_node **bitclkmaster,
+				     struct device_node **framemaster);
 int snd_soc_of_get_dai_name(struct device_node *of_node,
 			    const char **dai_name);
 

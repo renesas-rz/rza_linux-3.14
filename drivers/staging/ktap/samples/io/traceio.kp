@@ -1,0 +1,54 @@
+#! /usr/bin/env ktap
+
+# Based on systemtap traceio.stp
+
+reads = ptable()
+writes = ptable()
+total_io = ptable()
+
+trace syscalls:sys_exit_read {
+	reads[execname()] <<< arg2
+	total_io[execname()] <<< arg2
+}
+
+trace syscalls:sys_exit_write {
+	writes[execname()] <<< arg2
+	total_io[execname()] <<< arg2
+}
+
+function humanread_digit(bytes) {
+	if (bytes > 1024*1024*1024) {
+		return bytes/1024/1024/1024
+	} elseif (bytes > 1024*1024) {
+		return bytes/1024/1024
+	} elseif (bytes > 1024) {
+		return bytes/1024
+	} else {
+		return bytes
+	}
+}
+
+function humanread_x(bytes) {
+	if (bytes > 1024*1024*1024) {
+		return " GiB"
+	} elseif (bytes > 1024*1024) {
+		return " MiB"
+	} elseif (bytes > 1024) {
+		return " KiB"
+	} else {
+		return "   B"
+	}
+}
+
+tick-1s {
+	ansi.clear_screen()
+	for (exec, _ in pairs(total_io)) {
+		local readnum = sum(reads[exec])
+		local writenum = sum(writes[exec])
+		printf("%15s r: %12d%s w: %12d%s\n", exec,
+			humanread_digit(readnum), humanread_x(readnum),
+			humanread_digit(writenum), humanread_x(writenum))
+	}
+	printf("\n")
+}
+

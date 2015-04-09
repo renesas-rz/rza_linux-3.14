@@ -24,9 +24,9 @@
 #include <linux/platform_device.h>
 #include <linux/sh_eth.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
-#include <mach/r7s72100.h>
+#include "common.h"
+#include "irqs.h"
+#include "r7s72100.h"
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -34,6 +34,7 @@
 #include <linux/spi/sh_spibsc.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
+#include <linux/serial_sci.h>
 #include <linux/i2c.h>
 #include <linux/i2c-riic.h>
 #include <linux/mmc/host.h>
@@ -57,6 +58,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/irq.h>
+#include <linux/dma-mapping.h>
 
 /* Board Options */
 //#define RSPI_TESTING	/* Uncomment for RSPI4 enabled on CN15 */
@@ -196,7 +198,7 @@ static const struct rza1_dma_pdata dma_pdata __initconst = {
 	.slave		= rza1_dma_slaves,
 	.slave_num	= ARRAY_SIZE(rza1_dma_slaves),
 #ifdef CONFIG_XIP_KERNEL
-	.channel_num	= 2,	/* Less channels means less RAM */
+	.channel_num	= 6,	/* Less channels means less RAM (2 for SDHI, 4 for Audio) */
 #else
 	.channel_num	= 16,	/* 16 MAX channels */
 #endif
@@ -1321,6 +1323,40 @@ static void remove_irqs(void)
 	}
 }
 
+/* SCIF */
+#define R7S72100_SCIF(index, baseaddr, irq)				\
+static const struct plat_sci_port scif##index##_platform_data = {	\
+	.type		= PORT_SCIF,					\
+	.regtype	= SCIx_SH2_SCIF_FIFODATA_REGTYPE,		\
+	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,		\
+	.scscr		= SCSCR_RIE | SCSCR_TIE | SCSCR_RE | SCSCR_TE |	\
+			  SCSCR_REIE,					\
+};									\
+									\
+static struct resource scif##index##_resources[] = {			\
+	DEFINE_RES_MEM(baseaddr, 0x100),				\
+	DEFINE_RES_IRQ(irq + 1),					\
+	DEFINE_RES_IRQ(irq + 2),					\
+	DEFINE_RES_IRQ(irq + 3),					\
+	DEFINE_RES_IRQ(irq),						\
+}									\
+
+//R7S72100_SCIF(0, 0xe8007000, gic_iid(221));	/* Not used */
+//R7S72100_SCIF(1, 0xe8007800, gic_iid(225));	/* Not used */
+R7S72100_SCIF(2, 0xe8008000, gic_iid(229));
+//R7S72100_SCIF(3, 0xe8008800, gic_iid(233));	/* Not used */
+//R7S72100_SCIF(4, 0xe8009000, gic_iid(237));	/* Not used */
+//R7S72100_SCIF(5, 0xe8009800, gic_iid(241));	/* Not used */
+//R7S72100_SCIF(6, 0xe800a000, gic_iid(245));	/* Not used */
+//R7S72100_SCIF(7, 0xe800a800, gic_iid(249));	/* Not used */
+
+#define r7s72100_register_scif(index)					       \
+	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+					  scif##index##_resources,	       \
+					  ARRAY_SIZE(scif##index##_resources), \
+					  &scif##index##_platform_data,	       \
+					  sizeof(scif##index##_platform_data))
+
 static void __init rskrza1_add_standard_devices(void)
 {
 #ifdef CONFIG_CACHE_L2X0
@@ -1440,6 +1476,15 @@ static void __init rskrza1_add_standard_devices(void)
 	spi_register_board_info(rskrza1_spi_devices,
 				ARRAY_SIZE(rskrza1_spi_devices));
 
+//	r7s72100_register_scif(0);	/* Not used */
+//	r7s72100_register_scif(1);	/* Not used */
+	r7s72100_register_scif(2);
+//	r7s72100_register_scif(3);	/* Not used */
+//	r7s72100_register_scif(4);	/* Not used */
+//	r7s72100_register_scif(5);	/* Not used */
+//	r7s72100_register_scif(6);	/* Not used */
+//	r7s72100_register_scif(7);	/* Not used */
+
 }
 
 static int heartbeat(void * data)
@@ -1523,6 +1568,17 @@ static void rskrza1_restart(enum reboot_mode mode, const char *cmd)
 	*(volatile uint16_t *)(base + WTCSR) = 0xA578;	/* Start timer */
 
 	while(1); /* Wait for WDT overflow */
+}
+
+void __init r7s72100_init_early(void)
+{
+	shmobile_init_delay();
+
+#ifdef CONFIG_XIP_KERNEL
+	/* Set the size of our pre-allocated DMA buffer pool because the
+	   default is 256KB */
+	init_dma_coherent_pool_size(16 * SZ_1K);
+#endif
 }
 
 static const char * const rskrza1_boards_compat_dt[] __initconst = {

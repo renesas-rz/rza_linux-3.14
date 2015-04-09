@@ -1,0 +1,19 @@
+#!/usr/bin/env ktap
+
+n = 0
+trace probe:schedule {
+	n = n + 1
+}
+
+# share same event id with previous one
+trace probe:schedule {
+}
+
+
+tick-1s {
+	if (n == 0) {
+		printf("failed\n");
+	}
+	exit()
+}
+

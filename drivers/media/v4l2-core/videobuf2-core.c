@@ -693,6 +693,7 @@ static int __reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	 * Make sure the requested values and current defaults are sane.
 	 */
 	num_buffers = min_t(unsigned int, req->count, VIDEO_MAX_FRAME);
+	num_buffers = max_t(unsigned int, req->count, q->min_buffers_needed);
 	memset(q->plane_sizes, 0, sizeof(q->plane_sizes));
 	memset(q->alloc_ctx, 0, sizeof(q->alloc_ctx));
 	q->memory = req->memory;
@@ -716,9 +717,16 @@ static int __reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	allocated_buffers = ret;
 
 	/*
+	 * There is no point in continuing if we can't allocate the minimum
+	 * number of buffers needed by this vb2_queue.
+	 */
+	if (allocated_buffers < q->min_buffers_needed)
+		ret = -ENOMEM;
+
+	/*
 	 * Check if driver can handle the allocated number of buffers.
 	 */
-	if (allocated_buffers < num_buffers) {
+	if (!ret && allocated_buffers < num_buffers) {
 		num_buffers = allocated_buffers;
 
 		ret = call_qop(q, queue_setup, q, NULL, &num_buffers,
@@ -745,6 +753,7 @@ static int __reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	 * to the userspace.
 	 */
 	req->count = allocated_buffers;
+	q->waiting_for_buffers = !V4L2_TYPE_IS_OUTPUT(q->type);
 
 	return 0;
 }
@@ -793,6 +802,7 @@ static int __create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create
 		memset(q->plane_sizes, 0, sizeof(q->plane_sizes));
 		memset(q->alloc_ctx, 0, sizeof(q->alloc_ctx));
 		q->memory = create->memory;
+		q->waiting_for_buffers = !V4L2_TYPE_IS_OUTPUT(q->type);
 	}
 
 	num_buffers = min(create->count, VIDEO_MAX_FRAME - q->num_buffers);
@@ -918,13 +928,20 @@ EXPORT_SYMBOL_GPL(vb2_plane_cookie);
  * vb2_buffer_done() - inform videobuf that an operation on a buffer is finished
  * @vb:		vb2_buffer returned from the driver
  * @state:	either VB2_BUF_STATE_DONE if the operation finished successfully
- *		or VB2_BUF_STATE_ERROR if the operation finished with an error
+ *		or VB2_BUF_STATE_ERROR if the operation finished with an error.
+ *		If start_streaming fails then it should return buffers with state
+ *		VB2_BUF_STATE_QUEUED to put them back into the queue.
  *
  * This function should be called by the driver after a hardware operation on
  * a buffer is finished and the buffer may be returned to userspace. The driver
  * cannot use this buffer anymore until it is queued back to it by videobuf
  * by the means of buf_queue callback. Only buffers previously queued to the
  * driver by buf_queue can be passed to this function.
+ *
+ * While streaming a buffer can only be returned in state DONE or ERROR.
+ * The start_streaming op can also return them in case the DMA engine cannot
+ * be started for some reason. In that case the buffers should be returned with
+ * state QUEUED.
  */
 void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 {
@@ -932,11 +949,17 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 	unsigned long flags;
 	unsigned int plane;
 
-	if (vb->state != VB2_BUF_STATE_ACTIVE)
+	if (WARN_ON(vb->state != VB2_BUF_STATE_ACTIVE))
 		return;
 
-	if (state != VB2_BUF_STATE_DONE && state != VB2_BUF_STATE_ERROR)
-		return;
+	if (!q->start_streaming_called) {
+		if (WARN_ON(state != VB2_BUF_STATE_QUEUED))
+			state = VB2_BUF_STATE_QUEUED;
+	} else if (!WARN_ON(!q->start_streaming_called)) {
+		if (WARN_ON(state != VB2_BUF_STATE_DONE &&
+			    state != VB2_BUF_STATE_ERROR))
+			state = VB2_BUF_STATE_ERROR;
+	}
 
 	dprintk(4, "Done processing on buffer %d, state: %d\n",
 			vb->v4l2_buf.index, state);
@@ -948,9 +971,13 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 	/* Add the buffer to the done buffers list */
 	spin_lock_irqsave(&q->done_lock, flags);
 	vb->state = state;
-	list_add_tail(&vb->done_entry, &q->done_list);
-	atomic_dec(&q->queued_count);
+	if (state != VB2_BUF_STATE_QUEUED)
+		list_add_tail(&vb->done_entry, &q->done_list);
+	atomic_dec(&q->owned_by_drv_count);
 	spin_unlock_irqrestore(&q->done_lock, flags);
+
+	if (state == VB2_BUF_STATE_QUEUED)
+		return;
 
 	/* Inform any processes that may be waiting for buffers */
 	wake_up(&q->done_wq);
@@ -1238,7 +1265,7 @@ static void __enqueue_in_driver(struct vb2_buffer *vb)
 	unsigned int plane;
 
 	vb->state = VB2_BUF_STATE_ACTIVE;
-	atomic_inc(&q->queued_count);
+	atomic_inc(&q->owned_by_drv_count);
 
 	/* sync buffers */
 	for (plane = 0; plane < vb->num_planes; ++plane)
@@ -1382,32 +1409,50 @@ EXPORT_SYMBOL_GPL(vb2_prepare_buf);
  * vb2_start_streaming() - Attempt to start streaming.
  * @q:		videobuf2 queue
  *
- * If there are not enough buffers, then retry_start_streaming is set to
- * 1 and 0 is returned. The next time a buffer is queued and
- * retry_start_streaming is 1, this function will be called again to
- * retry starting the DMA engine.
+ * Attempt to start streaming. When this function is called there must be
+ * at least q->min_buffers_needed buffers queued up (i.e. the minimum
+ * number of buffers required for the DMA engine to function). If the
+ * @start_streaming op fails it is supposed to return all the driver-owned
+ * buffers back to vb2 in state QUEUED. Check if that happened and if
+ * not warn and reclaim them forcefully.
  */
 static int vb2_start_streaming(struct vb2_queue *q)
 {
+	struct vb2_buffer *vb;
 	int ret;
 
-	/* Tell the driver to start streaming */
-	ret = call_qop(q, start_streaming, q, atomic_read(&q->queued_count));
-
 	/*
-	 * If there are not enough buffers queued to start streaming, then
-	 * the start_streaming operation will return -ENOBUFS and you have to
-	 * retry when the next buffer is queued.
+	 * If any buffers were queued before streamon,
+	 * we can now pass them to driver for processing.
 	 */
-	if (ret == -ENOBUFS) {
-		dprintk(1, "qbuf: not enough buffers, retry when more buffers are queued.\n");
-		q->retry_start_streaming = 1;
+	list_for_each_entry(vb, &q->queued_list, queued_entry)
+		__enqueue_in_driver(vb);
+
+	/* Tell the driver to start streaming */
+	q->start_streaming_called = 1;
+	ret = call_qop(q, start_streaming, q,
+		       atomic_read(&q->owned_by_drv_count));
+	if (!ret)
 		return 0;
+
+	q->start_streaming_called = 0;
+
+	dprintk(1, "qbuf: driver refused to start streaming\n");
+	if (WARN_ON(atomic_read(&q->owned_by_drv_count))) {
+		unsigned i;
+
+		/*
+		 * Forcefully reclaim buffers if the driver did not
+		 * correctly return them to vb2.
+		 */
+		for (i = 0; i < q->num_buffers; ++i) {
+			vb = q->bufs[i];
+			if (vb->state == VB2_BUF_STATE_ACTIVE)
+				vb2_buffer_done(vb, VB2_BUF_STATE_QUEUED);
+		}
+		/* Must be zero now */
+		WARN_ON(atomic_read(&q->owned_by_drv_count));
 	}
-	if (ret)
-		dprintk(1, "qbuf: driver refused to start streaming\n");
-	else
-		q->retry_start_streaming = 0;
 	return ret;
 }
 
@@ -1447,19 +1492,28 @@ static int vb2_internal_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 	 * dequeued in dqbuf.
 	 */
 	list_add_tail(&vb->queued_entry, &q->queued_list);
+	q->queued_count++;
+	q->waiting_for_buffers = false;
 	vb->state = VB2_BUF_STATE_QUEUED;
 
 	/*
 	 * If already streaming, give the buffer to driver for processing.
 	 * If not, the buffer will be given to driver on next streamon.
 	 */
-	if (q->streaming)
+	if (q->start_streaming_called)
 		__enqueue_in_driver(vb);
 
 	/* Fill buffer information for the userspace */
 	__fill_v4l2_buffer(vb, b);
 
-	if (q->retry_start_streaming) {
+	/*
+	 * If streamon has been called, and we haven't yet called
+	 * start_streaming() since not enough buffers were queued, and
+	 * we now have reached the minimum number of queued buffers,
+	 * then we can finally call start_streaming().
+	 */
+	if (q->streaming && !q->start_streaming_called &&
+	    q->queued_count >= q->min_buffers_needed) {
 		ret = vb2_start_streaming(q);
 		if (ret)
 			return ret;
@@ -1614,8 +1668,8 @@ int vb2_wait_for_all_buffers(struct vb2_queue *q)
 		return -EINVAL;
 	}
 
-	if (!q->retry_start_streaming)
-		wait_event(q->done_wq, !atomic_read(&q->queued_count));
+	if (q->start_streaming_called)
+		wait_event(q->done_wq, !atomic_read(&q->owned_by_drv_count));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_wait_for_all_buffers);
@@ -1679,6 +1733,7 @@ static int vb2_internal_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool n
 	__fill_v4l2_buffer(vb, b);
 	/* Remove from videobuf queue */
 	list_del(&vb->queued_entry);
+	q->queued_count--;
 	/* go back to dequeued state */
 	__vb2_dqbuf(vb);
 
@@ -1729,18 +1784,23 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 {
 	unsigned int i;
 
-	if (q->retry_start_streaming) {
-		q->retry_start_streaming = 0;
-		q->streaming = 0;
-	}
-
 	/*
 	 * Tell driver to stop all transactions and release all queued
 	 * buffers.
 	 */
-	if (q->streaming)
+	if (q->start_streaming_called)
 		call_qop(q, stop_streaming, q);
 	q->streaming = 0;
+	q->start_streaming_called = 0;
+	q->queued_count = 0;
+
+	if (WARN_ON(atomic_read(&q->owned_by_drv_count))) {
+		for (i = 0; i < q->num_buffers; ++i)
+			if (q->bufs[i]->state == VB2_BUF_STATE_ACTIVE)
+				vb2_buffer_done(q->bufs[i], VB2_BUF_STATE_ERROR);
+		/* Must be zero now */
+		WARN_ON(atomic_read(&q->owned_by_drv_count));
+	}
 
 	/*
 	 * Remove all buffers from videobuf's list...
@@ -1751,7 +1811,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	 * has not already dequeued before initiating cancel.
 	 */
 	INIT_LIST_HEAD(&q->done_list);
-	atomic_set(&q->queued_count, 0);
+	atomic_set(&q->owned_by_drv_count, 0);
 	wake_up_all(&q->done_wq);
 
 	/*
@@ -1763,7 +1823,6 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 
 static int vb2_internal_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
 {
-	struct vb2_buffer *vb;
 	int ret;
 
 	if (type != q->type) {
@@ -1781,18 +1840,26 @@ static int vb2_internal_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
 		return -EINVAL;
 	}
 
-	/*
-	 * If any buffers were queued before streamon,
-	 * we can now pass them to driver for processing.
-	 */
-	list_for_each_entry(vb, &q->queued_list, queued_entry)
-		__enqueue_in_driver(vb);
+	if (!q->num_buffers) {
+		dprintk(1, "streamon: no buffers have been allocated\n");
+		return -EINVAL;
+	}
+	if (q->num_buffers < q->min_buffers_needed) {
+		dprintk(1, "streamon: need at least %u allocated buffers\n",
+				q->min_buffers_needed);
+		return -EINVAL;
+	}
 
-	/* Tell driver to start streaming. */
-	ret = vb2_start_streaming(q);
-	if (ret) {
-		__vb2_queue_cancel(q);
-		return ret;
+	/*
+	 * Tell driver to start streaming provided sufficient buffers
+	 * are available.
+	 */
+	if (q->queued_count >= q->min_buffers_needed) {
+		ret = vb2_start_streaming(q);
+		if (ret) {
+			__vb2_queue_cancel(q);
+			return ret;
+		}
 	}
 
 	q->streaming = 1;
@@ -1841,6 +1908,7 @@ static int vb2_internal_streamoff(struct vb2_queue *q, enum v4l2_buf_type type)
 	 * and videobuf, effectively returning control over them to userspace.
 	 */
 	__vb2_queue_cancel(q);
+	q->waiting_for_buffers = !V4L2_TYPE_IS_OUTPUT(q->type);
 
 	dprintk(3, "Streamoff successful\n");
 	return 0;
@@ -2150,9 +2218,16 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 	}
 
 	/*
-	 * There is nothing to wait for if no buffers have already been queued.
+	 * There is nothing to wait for if the queue isn't streaming.
 	 */
-	if (list_empty(&q->queued_list))
+	if (!vb2_is_streaming(q))
+		return res | POLLERR;
+	/*
+	 * For compatibility with vb1: if QBUF hasn't been called yet, then
+	 * return POLLERR as well. This only affects capture queues, output
+	 * queues will always initialize waiting_for_buffers to false.
+	 */
+	if (q->waiting_for_buffers)
 		return res | POLLERR;
 
 	if (list_empty(&q->done_list))

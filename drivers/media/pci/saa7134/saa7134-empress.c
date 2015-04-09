@@ -189,7 +189,6 @@ static int empress_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -207,7 +206,6 @@ static int empress_s_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }
@@ -225,7 +223,6 @@ static int empress_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
 	f->fmt.pix.bytesperline = 0;
-	f->fmt.pix.priv = 0;
 
 	return 0;
 }

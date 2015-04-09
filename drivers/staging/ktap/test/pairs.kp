@@ -1,0 +1,84 @@
+#!/usr/bin/env ktap
+
+function failed() {
+	printf("failed\n");
+	exit(-1);
+}
+
+#-----------------------------------------#
+
+t = {}
+t[1] = 101
+t[2] = 102
+t[3] = 103
+t["key_1"] = "value_1"
+t["key_2"] = "value_2"
+t["key_3"] = "value_3"
+
+local n = 0
+
+for (k, v in pairs(t)) {
+	n = n + 1
+
+	if (k == 1 && v != 101) {
+		failed()
+	}
+	if (k == 2 && v != 102) {
+		failed()
+	}
+	if (k == 3 && v != 103) {
+		failed()
+	}
+	if (k == "key_1" && v != "value_1") {
+		failed()
+	}
+	if (k == "key_2" && v != "value_2") {
+		failed()
+	}
+	if (k == "key_3" && v != "value_3") {
+		failed()
+	}
+}
+
+if (n != len(t)) {
+	failed()
+}
+
+
+#-------------------------------------------------#
+
+s = {}
+s[1] = 12
+s[2] = 2
+s[3] = 3
+s["124"] = 100
+s["125"] = -1
+
+ordered = {}
+
+number = 0
+
+function cmp(v1, v2) {
+	return (v1 > v2)
+}
+
+for (k, v in sort_pairs(s, cmp)) {
+	number += 1
+	ordered[number] = v
+}
+
+if (ordered[1] != 100) {
+	failed()
+}
+if (ordered[2] != 12) {
+	failed()
+}
+if (ordered[3] != 3) {
+	failed()
+}
+if (ordered[4] != 2) {
+	failed()
+}
+if (ordered[5] != -1) {
+	failed()
+}

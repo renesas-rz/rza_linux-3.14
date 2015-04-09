@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
-#include <mach/r7s72100.h>
+#include "r7s72100.h"
 
 #define GPIO_CHIP_NAME "RZA1_INTERNAL_PFC"
 

@@ -984,6 +984,7 @@ static int wm8978_probe(struct snd_soc_codec *codec)
 {
 	struct wm8978_priv *wm8978 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0, i;
+
 	/*
 	 * Set default system clock to PLL, it is more precise, this is also the
 	 * default hardware setting
@@ -1068,7 +1069,7 @@ static int wm8978_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 		dev_err(&i2c->dev, "Failed to issue reset: %d\n", ret);
 		return ret;
 	}
-	
+
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8978, &wm8978_dai, 1);
 	if (ret != 0) {

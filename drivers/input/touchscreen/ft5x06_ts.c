@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/input/mt.h>
-#include <mach/r7s72100.h>
 #include <linux/timer.h>
 
 //#define DB_PRINT

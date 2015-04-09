@@ -254,7 +254,8 @@ static void v4l_print_format(const void *arg, bool write_only)
 		pix = &p->fmt.pix;
 		pr_cont(", width=%u, height=%u, "
 			"pixelformat=%c%c%c%c, field=%s, "
-			"bytesperline=%u, sizeimage=%u, colorspace=%d\n",
+			"bytesperline=%u, sizeimage=%u, colorspace=%d, "
+			"flags %u\n",
 			pix->width, pix->height,
 			(pix->pixelformat & 0xff),
 			(pix->pixelformat >>  8) & 0xff,
@@ -262,7 +263,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 			(pix->pixelformat >> 24) & 0xff,
 			prt_names(pix->field, v4l2_field_names),
 			pix->bytesperline, pix->sizeimage,
-			pix->colorspace);
+			pix->colorspace, pix->flags);
 		break;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
@@ -936,13 +937,48 @@ static int check_fmt(struct file *file, enum v4l2_buf_type type)
 	return -EINVAL;
 }
 
+static void v4l_sanitize_format(struct v4l2_format *fmt)
+{
+	unsigned int offset;
+
+	/*
+	 * The v4l2_pix_format structure has been extended with fields that were
+	 * not previously required to be set to zero by applications. The priv
+	 * field, when set to a magic value, indicates the the extended fields
+	 * are valid. Otherwise they will contain undefined values. To simplify
+	 * the API towards drivers zero the extended fields and set the priv
+	 * field to the magic value when the extended pixel format structure
+	 * isn't used by applications.
+	 */
+
+	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    fmt->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return;
+
+	if (fmt->fmt.pix.priv == V4L2_PIX_FMT_PRIV_MAGIC)
+		return;
+
+	fmt->fmt.pix.priv = V4L2_PIX_FMT_PRIV_MAGIC;
+
+	offset = offsetof(struct v4l2_pix_format, priv)
+	       + sizeof(fmt->fmt.pix.priv);
+	memset(((void *)&fmt->fmt.pix) + offset, 0,
+	       sizeof(fmt->fmt.pix) - offset);
+}
+
 static int v4l_querycap(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
 	struct v4l2_capability *cap = (struct v4l2_capability *)arg;
+	int ret;
 
 	cap->version = LINUX_VERSION_CODE;
-	return ops->vidioc_querycap(file, fh, cap);
+
+	ret = ops->vidioc_querycap(file, fh, cap);
+
+	cap->capabilities |= V4L2_CAP_EXT_PIX_FORMAT;
+
+	return ret;
 }
 
 static int v4l_s_input(const struct v4l2_ioctl_ops *ops,
@@ -1061,12 +1097,17 @@ static int v4l_g_fmt(const struct v4l2_ioctl_ops *ops,
 	bool is_vid = vfd->vfl_type == VFL_TYPE_GRABBER;
 	bool is_rx = vfd->vfl_dir != VFL_DIR_TX;
 	bool is_tx = vfd->vfl_dir != VFL_DIR_RX;
+	int ret;
+
+	v4l_sanitize_format(p);
 
 	switch (p->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		if (unlikely(!is_rx || !is_vid || !ops->vidioc_g_fmt_vid_cap))
 			break;
-		return ops->vidioc_g_fmt_vid_cap(file, fh, arg);
+		ret = ops->vidioc_g_fmt_vid_cap(file, fh, arg);
+		p->fmt.pix.priv = V4L2_PIX_FMT_PRIV_MAGIC;
+		return ret;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 		if (unlikely(!is_rx || !is_vid || !ops->vidioc_g_fmt_vid_cap_mplane))
 			break;
@@ -1086,7 +1127,9 @@ static int v4l_g_fmt(const struct v4l2_ioctl_ops *ops,
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 		if (unlikely(!is_tx || !is_vid || !ops->vidioc_g_fmt_vid_out))
 			break;
-		return ops->vidioc_g_fmt_vid_out(file, fh, arg);
+		ret = ops->vidioc_g_fmt_vid_out(file, fh, arg);
+		p->fmt.pix.priv = V4L2_PIX_FMT_PRIV_MAGIC;
+		return ret;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		if (unlikely(!is_tx || !is_vid || !ops->vidioc_g_fmt_vid_out_mplane))
 			break;
@@ -1446,7 +1489,18 @@ static int v4l_create_bufs(const struct v4l2_ioctl_ops *ops,
 	struct v4l2_create_buffers *create = arg;
 	int ret = check_fmt(file, create->format.type);
 
-	return ret ? ret : ops->vidioc_create_bufs(file, fh, create);
+	if (ret)
+		return ret;
+
+	v4l_sanitize_format(&create->format);
+
+	ret = ops->vidioc_create_bufs(file, fh, create);
+
+	if (create->format.type == V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+	    create->format.type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		create->format.fmt.pix.priv = V4L2_PIX_FMT_PRIV_MAGIC;
+
+	return ret;
 }
 
 static int v4l_prepare_buf(const struct v4l2_ioctl_ops *ops,

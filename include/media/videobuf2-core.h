@@ -315,20 +315,27 @@ struct v4l2_fh;
  * @gfp_flags:	additional gfp flags used when allocating the buffers.
  *		Typically this is 0, but it may be e.g. GFP_DMA or __GFP_DMA32
  *		to force the buffer allocation to a specific memory zone.
+ * @min_buffers_needed: the minimum number of buffers needed before
+ *		start_streaming() can be called. Used when a DMA engine
+ *		cannot be started unless at least this number of buffers
+ *		have been queued into the driver.
  *
  * @memory:	current memory type used
  * @bufs:	videobuf buffer structures
  * @num_buffers: number of allocated/used buffers
  * @queued_list: list of buffers currently queued from userspace
- * @queued_count: number of buffers owned by the driver
+ * @queued_count: number of buffers queued and ready for streaming.
+ * @owned_by_drv_count: number of buffers owned by the driver
  * @done_list:	list of buffers ready to be dequeued to userspace
  * @done_lock:	lock to protect done_list list
  * @done_wq:	waitqueue for processes waiting for buffers ready to be dequeued
  * @alloc_ctx:	memory type/allocator-specific contexts for each plane
  * @streaming:	current streaming state
- * @retry_start_streaming: start_streaming() was called, but there were not enough
- *		buffers queued. If set, then retry calling start_streaming when
- *		queuing a new buffer.
+ * @start_streaming_called: start_streaming() was called successfully and we
+ *		started streaming.
+ * @waiting_for_buffers: used in poll() to check if vb2 is still waiting for
+ *		buffers. Only set for capture queues if qbuf has not yet been
+ *		called since poll() needs to return POLLERR in that situation.
  * @fileio:	file io emulator internal data, used only if emulator is active
  */
 struct vb2_queue {
@@ -344,6 +351,7 @@ struct vb2_queue {
 	unsigned int			buf_struct_size;
 	u32				timestamp_type;
 	gfp_t				gfp_flags;
+	u32				min_buffers_needed;
 
 /* private: internal use only */
 	enum v4l2_memory		memory;
@@ -351,8 +359,9 @@ struct vb2_queue {
 	unsigned int			num_buffers;
 
 	struct list_head		queued_list;
+	unsigned int			queued_count;
 
-	atomic_t			queued_count;
+	atomic_t			owned_by_drv_count;
 	struct list_head		done_list;
 	spinlock_t			done_lock;
 	wait_queue_head_t		done_wq;
@@ -361,7 +370,8 @@ struct vb2_queue {
 	unsigned int			plane_sizes[VIDEO_MAX_PLANES];
 
 	unsigned int			streaming:1;
-	unsigned int			retry_start_streaming:1;
+	unsigned int			start_streaming_called:1;
+	unsigned int			waiting_for_buffers:1;
 
 	struct vb2_fileio_data		*fileio;
 };

@@ -1743,7 +1743,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 	spin_lock_init(&pcdev->lock);
 	init_completion(&pcdev->complete);
 
-	pcdev->pdata = pdev->dev.platform_data;
+	pcdev->pdata = dev_get_platdata(&pdev->dev);
 	if (!pcdev->pdata && !pdev->dev.of_node) {
 		dev_err(&pdev->dev, "CEU platform data not set.\n");
 		return -EINVAL;

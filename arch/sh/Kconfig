@@ -3,7 +3,7 @@ config SUPERH
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select EXPERT
 	select CLKDEV_LOOKUP
-	select HAVE_IDE if HAS_IOPORT
+	select HAVE_IDE if HAS_IOPORT_MAP
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select ARCH_DISCARD_MEMBLOCK
@@ -147,7 +147,7 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	def_bool n
 
-config NO_IOPORT
+config NO_IOPORT_MAP
 	def_bool !PCI
 	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV && !SH_SHMIN && \
 		   !SH_HP6XX && !SH_SOLUTION_ENGINE
@@ -181,6 +181,7 @@ menu "System type"
 #
 config CPU_SH2
 	bool
+	select SH_INTC
 
 config CPU_SH2A
 	bool
@@ -191,6 +192,7 @@ config CPU_SH3
 	bool
 	select CPU_HAS_INTEVT
 	select CPU_HAS_SR_RB
+	select SH_INTC
 	select SYS_SUPPORTS_TMU
 
 config CPU_SH4
@@ -198,6 +200,7 @@ config CPU_SH4
 	select CPU_HAS_INTEVT
 	select CPU_HAS_SR_RB
 	select CPU_HAS_FPU if !CPU_SH4AL_DSP
+	select SH_INTC
 	select SYS_SUPPORTS_TMU
 	select SYS_SUPPORTS_HUGETLBFS if MMU
 
@@ -356,7 +359,6 @@ config CPU_SUBTYPE_SH7720
 	select CPU_HAS_DSP
 	select SYS_SUPPORTS_CMT
 	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select USB_ARCH_HAS_OHCI
 	select USB_OHCI_SH if USB_OHCI_HCD
 	select PINCTRL
 	help
@@ -367,7 +369,6 @@ config CPU_SUBTYPE_SH7721
 	select CPU_SH3
 	select CPU_HAS_DSP
 	select SYS_SUPPORTS_CMT
-	select USB_ARCH_HAS_OHCI
 	select USB_OHCI_SH if USB_OHCI_HCD
 	help
 	  Select SH7721 if you have a SH3-DSP SH7721 CPU.
@@ -445,8 +446,6 @@ config CPU_SUBTYPE_SH7734
 	select CPU_SH4A
 	select CPU_SHX2
 	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select USB_ARCH_HAS_OHCI
-	select USB_ARCH_HAS_EHCI
 	select PINCTRL
 	help
 	  Select SH7734 if you have a SH4A SH7734 CPU.
@@ -456,8 +455,6 @@ config CPU_SUBTYPE_SH7757
 	select CPU_SH4A
 	select CPU_SHX2
 	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select USB_ARCH_HAS_OHCI
-	select USB_ARCH_HAS_EHCI
 	select PINCTRL
 	help
 	  Select SH7757 if you have a SH4A SH7757 CPU.
@@ -465,7 +462,6 @@ config CPU_SUBTYPE_SH7757
 config CPU_SUBTYPE_SH7763
 	bool "Support SH7763 processor"
 	select CPU_SH4A
-	select USB_ARCH_HAS_OHCI
 	select USB_OHCI_SH if USB_OHCI_HCD
 	help
 	  Select SH7763 if you have a SH4A SH7763(R5S77631) CPU.
@@ -494,9 +490,7 @@ config CPU_SUBTYPE_SH7786
 	select CPU_HAS_PTEAEX
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select USB_ARCH_HAS_OHCI
 	select USB_OHCI_SH if USB_OHCI_HCD
-	select USB_ARCH_HAS_EHCI
 	select USB_EHCI_SH if USB_EHCI_HCD
 	select PINCTRL
 

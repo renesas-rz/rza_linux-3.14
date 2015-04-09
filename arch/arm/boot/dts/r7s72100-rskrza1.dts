@@ -15,6 +15,10 @@
 	model = "RSKRZA1";
 	compatible = "renesas,rskrza1", "renesas,r7s72100";
 
+	aliases {
+		serial2 = &scif2;
+	};
+
 	chosen {
 		/* Add lots of white space so we have room to overwirte in u-boot */ 
 		bootargs = "console=ttySC2,115200 ignore_loglevel rw root=/dev/nfs ip=dhcp\
@@ -32,3 +36,16 @@
 		#size-cells = <1>;
 	};
 };
+
+&extal_clk {
+	clock-frequency = <13330000>;
+};
+
+&usb_x1_clk {
+	clock-frequency = <48000000>;
+};
+
+&scif2 {
+	status = "okay";
+};
+

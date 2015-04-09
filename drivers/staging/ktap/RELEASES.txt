@@ -1,0 +1,155 @@
+Version 0.4 (Dec 9 2013)
+-------------------------
+= Highlight changes from v0.3
+
+   * kernel symbol read (syntax: `symbol_name`)
+
+   * parse symbol on uprobe (need libelf link)
+        trace probe:/lib64/libc.so.6:malloc {}
+        trace probe:/lib64/libc.so.6:malloc%return {}
+        trace probe:/lib64/libc.so.6:* {} # trace all function in glibc
+
+   * support static marker(SDT)
+        trace sdt:/lib64/libc.so.6:setjmp {}
+        trace sdt:/lib64/libc.so.6:* {} # trace all sdt in glibc
+
+   * support kprobe wildcard
+        trace probe:vfs* {}
+
+   * support run multiple ktap instances concurrently
+
+   * add command option for list available events and symbols
+        -le [glob]     : list pre-defined events in system
+        -lf DSO        : list available functions from DSO
+        -lm DSO        : list available sdt notes from DSO
+
+   * better annotation for output of argname
+
+   * basic FFI support (depend on CONFIG_KTAP_FFI)
+        FFI will allow call kernel function from ktap script
+
+        cdef [[ int printk(char *fmt, ...); ]]
+        C.printk("this is ffi printk from ktap\n")
+
+        (currently only support basic C types, structure support is ongoing)
+
+   * New sample scripts
+        userspace/malloc_size_hist.kp
+        userspace/malloc_free.kp
+        userspace/gcc_unwind.kp
+        userspace/glibc_sdt.kp        #trace all static marker in glibc
+        userspace/glibc_trace.kp      #trace all functions in glibc
+        userspace/glibc_func_hist.kp  #show glibc functions in histogram
+        syscalls/syslatl.kp           #syscall latency linear aggregation
+        syscalls/syslist.kp           #syscall latency as a list with counts
+        syscalls/opensnoop.kp         #trace open() syscalls and print basic details
+        ffi/ffi_kmalloc.kp
+        ffi/printk.kp
+        ffi/sched_clock.kp
+
+   * use amalgamation build as default
+        x86_64 build: ktap binary size is 98K, ktapvm.ko size is 983K
+
+   * Big cleanups and lots of bugfix
+
+
+Version 0.3 (Oct 29 2013)
+-------------------------
+= Highlight changes from v0.2
+
+   * Homepage released: www.ktap.org
+
+   * Tutorial: http://www.ktap.org/doc/tutorial.html
+
+   * Wiki: https://github.com/ktap/ktap/wiki
+
+   * simple new tracing block syntax
+	trace EVENTDEF { action }
+	trace_end { action }
+
+   * New event tracing keywords: argevent, argname, arg1..arg9
+	trace "syscalls:*" function () {
+		print(argevent)
+	}
+
+   * New timer block syntax
+	tick-N { action }
+	profile-N { action }
+
+   * Basic aggregation support
+	It's similar with systemtap, use "<<<" operator
+	support aggregate function: count, sum, avg, max, min
+
+   * Introduce new "+=" operator
+
+   * Introduce sort_paris for table sort iteration
+
+   * New sample scripts
+	helloworld.kp
+	syscalls/sctop.kp
+	profiling/stack_profile.kp
+	io/traceio.kp
+	mem/kmalloc-top.kp
+	syscalls/errinfo.kp
+	schedule/schedtimes.kp
+	game/tetris.kp
+
+   * ansi library for sending ANSI escape sequences
+
+
+   * statistics of ktapvm
+
+   * Big cleanups and lots of bugfix
+
+Version 0.2 (Jul 31 2013)
+-------------------------
+
+= Script highlight changes from v0.1
+
+   * new tracing block syntax
+	trace EVENTDEF function (e) { BODY }
+	trace_end function (e) { BODY }
+
+   * support trace filter
+	trace 'sched:sched_switch /prev_comm == foo || next_comm == foo/
+
+   * support kprobe/kretprobe
+	trace "probe:do_sys_open dfd=%di filename=%dx flags=%cx mode=+4($stack)"
+	trace "probe:do_sys_open%return fd=$retval"
+
+   * support uprobe/uretprobe
+	trace "probe:/lib/libc.so.6:0x000773c0"
+	trace "probe:/lib/libc.so.6:0x000773c0%return"
+
+   * support function tracing
+	trace "ftrace:function /ip == mutex*/"
+
+   * support oneline scripting
+	ktap -e 'trace "syscalls:*" function (e) { print(e) }'
+
+   * specific pid or cpu to tracing
+	ktap -C cpu *.kp
+	ktap -p pid *.kp
+
+   * more sample scripts
+
+   * support calling print_backtrace() in any context
+
+   * support calling exit() in any context
+
+= Backend highlight changes from v0.1
+
+   * unified perf callback mechanism
+   * use ring buffer transport instead of relayfs
+   * reentrant in ktap tracing
+   * performance boost(use percpu data in many case)
+   * safe table/string manipulation
+   * safe ktap exit
+   * big code cleanups
+   * fixed a lot of bugs, more stable than v0.1
+
+Version 0.1 (May 21 2013)
+-------------------------
+
+    https://lwn.net/Articles/551253/
+
