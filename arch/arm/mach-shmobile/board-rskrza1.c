@@ -1458,9 +1458,16 @@ static struct resource ceu_resources[] = {
 		.start  = gic_iid(364),
 		.flags  = IORESOURCE_IRQ,
 	},
+#ifdef CONFIG_XIP_KERNEL
+	/* CEU Requires dedicated memory when in XIP mode, as there's not enough continguous
+	 * memory for the buffers. You must also specify mem=8M on the kernel command line */
 	[2] = {
-		/* place holder for contiguous memory */
+		.name	= "CEU Buffer",
+		.start	= 0x20800000,
+		.end	= 0x20A00000,
+		.flags	= IORESOURCE_MEM,
 	},
+#endif
 };
 
 static const struct platform_device_info ceu_info __initconst = {
