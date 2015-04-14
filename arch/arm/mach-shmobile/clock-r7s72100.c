@@ -167,7 +167,7 @@ enum {
 	MSTP67, MSTP60,
 	MSTP51, MSTP50,
 	MSTP47, MSTP46, MSTP45, MSTP44, MSTP43, MSTP42, MSTP41, MSTP40,
-	MSTP33,	MSTP_NR
+	MSTP32, MSTP33,	MSTP_NR
 };
 
 static struct clk mstp_clks[MSTP_NR] = {
@@ -218,6 +218,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP42] = SH_CLK_MSTP8(&peripheral1_clk, STBCR4, 2, 0), /* SCIF5 */
 	[MSTP41] = SH_CLK_MSTP8(&peripheral1_clk, STBCR4, 1, 0), /* SCIF6 */
 	[MSTP40] = SH_CLK_MSTP8(&peripheral1_clk, STBCR4, 0, 0), /* SCIF7 */
+	[MSTP32] = SH_CLK_MSTP8(&peripheral1_clk, STBCR3, 2, 0),   /* CAN */
 	[MSTP33] = SH_CLK_MSTP8(&peripheral0_clk, STBCR3, 3, 0), /* MTU2 */
 };
 
@@ -261,6 +262,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("scux", &mstp_clks[MSTP81]),
 	CLKDEV_CON_ID("usb0", &mstp_clks[MSTP71]),
 	CLKDEV_CON_ID("usb1", &mstp_clks[MSTP70]),
+	CLKDEV_CON_ID("can",  &mstp_clks[MSTP32]),
 
 	/* ICK */
 	CLKDEV_ICK_ID("sci_fck", "sh-sci.0", &mstp_clks[MSTP47]),

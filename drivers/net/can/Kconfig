@@ -92,6 +92,12 @@ config CAN_BFIN
 	  To compile this driver as a module, choose M here: the
 	  module will be called bfin_can.
 
+config CAN_RZA1
+	depends on CAN_DEV
+	tristate "RZ/A1 onchip RS-CAN controller"
+	---help---
+	  Driver for RZ/A1 onchip RS-CAN controller
+
 config CAN_JANZ_ICAN3
 	tristate "Janz VMOD-ICAN3 Intelligent CAN controller"
 	depends on MFD_JANZ_CMODIO

@@ -59,6 +59,7 @@
 #include <linux/kthread.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
+#include <linux/can/platform/rza1_can.h>
 
 /* Board Options */
 //#define RSPI_TESTING	/* Uncomment for RSPI4 enabled on CN15 */
@@ -1076,6 +1077,50 @@ static const struct platform_device_info r8a66597_usb_gadget1_info __initconst =
 	.num_res	= ARRAY_SIZE(r8a66597_usb_gadget1_resources),
 };
 
+#ifdef CONFIG_CAN_RZA1
+static struct resource rz_can_resources[] = {
+	[0] = {
+		.start	= 0xe803a000,
+		.end	= 0xe803b813,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 258,
+		.end	= 258,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= 260,
+		.end	= 260,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= 259,
+		.end	= 259,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[4] = {
+		.start	= 253,
+		.end	= 253,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct rz_can_platform_data rz_can_data = {
+	.channel	= 1,
+	.clock_select	= CLKR_CLKC,
+};
+
+static struct platform_device_info rz_can_device = {
+	.name		= "rz_can",
+	.id		= 1,
+	.num_res	= ARRAY_SIZE(rz_can_resources),
+	.res		= rz_can_resources,
+	.data		= &rz_can_data,
+	.size_data	= sizeof(rz_can_data),
+};
+#endif /* CONFIG_CAN_RZA1 */
+
 /* Write to I2C device */
 /* stolen from board-sx1.c */
 int rza1_i2c_write_byte(u8 ch, u8 devaddr, u8 regoffset, u8 value)
@@ -1273,6 +1318,12 @@ struct irq_res const irq_keep_list[] __initconst = {
 //	{241, 4},	/* SCIF5 */
 //	{245, 4},	/* SCIF6 */
 //	{249, 4},	/* SCIF7 */
+//	{253, 2},	/* CAN GERR/GRECC */
+//	{255, 3},	/* CAN0 */
+//	{258, 3},	/* CAN1 */
+//	{261, 3},	/* CAN2 */
+//	{264, 3},	/* CAN3 */
+//	{267, 3},	/* CAN4 */
 //	{270, 3},	/* RSPI0 */
 //	{273, 3},	/* RSPI1 */
 //	{276, 3},	/* RSPI2 */
@@ -1409,6 +1460,18 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P3_15, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT2 */
 #endif
 	gpio_irq_init();
+
+#ifdef CONFIG_CAN_RZA1
+	/* Ch 1 (conflicts with Ethernet, requires resistor change) */
+	r7s72100_pfc_pin_assign(P5_9, ALT5, DIIO_PBDC_DIS);	/* CAN CAN1RX */
+	r7s72100_pfc_pin_assign(P5_10, ALT5, DIIO_PBDC_DIS);	/* CAN CAN1TX */
+
+	/* Ch 2 (conflicts with SDRAM) */
+	//r7s72100_pfc_pin_assign(P7_2, ALT5, DIIO_PBDC_DIS);	/* CAN CAN2RX */
+	//r7s72100_pfc_pin_assign(P7_3, ALT5, DIIO_PBDC_DIS);	/* CAN CAN2TX */
+
+	platform_device_register_full(&rz_can_device);
+#endif
 
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
