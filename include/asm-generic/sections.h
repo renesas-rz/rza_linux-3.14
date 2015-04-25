@@ -18,13 +18,13 @@
  *
  * Following global variables are optional and may be unavailable on some
  * architectures and/or kernel configurations.
- *	_text, _data
+ *	_text, _data, _edata_loc
  *	__kprobes_text_start, __kprobes_text_end
  *	__entry_text_start, __entry_text_end
  *	__ctors_start, __ctors_end
  */
 extern char _text[], _stext[], _etext[];
-extern char _data[], _sdata[], _edata[];
+extern char _data[], _sdata[], _edata[], _edata_loc[];
 extern char __bss_start[], __bss_stop[];
 extern char __init_begin[], __init_end[];
 extern char _sinittext[], _einittext[];

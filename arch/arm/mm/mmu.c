@@ -39,8 +39,6 @@
 #include "mm.h"
 #include "tcm.h"
 
-extern char _edata_loc[];
-
 /*
  * empty_zero_page is a special page that is used for
  * zero-initialized data and COW.
