@@ -333,12 +333,12 @@ static struct fb_videomode videomode_gwp0700cnwv04 = {
 	.xres		= 800,
 	.yres		= 480,
 	.pixclock	= PIXCLOCK(P1CLK, 2),
-	.left_margin	= 210,
-	.right_margin	= 46,
-	.upper_margin	= 22,
-	.lower_margin	= 23,
-	.hsync_len	= 40,
-	.vsync_len	= 20,
+	.left_margin	= 210,	/* horizontal front porch */
+	.right_margin	= 46,	/* horizontal back porch */
+	.upper_margin	= 23,	/* vertical back porch */
+	.lower_margin	= 22,	/* vertical front porch */
+	.hsync_len	= 40,	/* max */
+	.vsync_len	= 20,	/* max */
 	.sync		= 0,
 	.vmode		= 0,
 	.flag		= 0,
@@ -1169,6 +1169,8 @@ int rza1_i2c_read_byte(u8 ch, u8 devaddr, u8 regoffset, u8 *value)
 	msg->buf = data;
 	data[0] = regoffset;	/* register num */
 	err = i2c_transfer(adap, msg, 1);
+	if (err < 0)
+		return err;
 
 	msg->addr = devaddr;	/* I2C address */
 	msg->flags = I2C_M_RD;
@@ -1531,7 +1533,7 @@ static void __init rskrza1_add_standard_devices(void)
 	l2x0_init(IOMEM(0xfffee000), 0x00000000, 0xffffffff);	/* Leave as defaults */
 #endif
 #endif
-#if CONFIG_XIP_KERNEL
+#ifdef CONFIG_XIP_KERNEL
 	remove_irqs();
 #endif
 
@@ -1596,7 +1598,7 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&scux_info);
 	platform_device_register_full(&ether_info);
 
-	platform_device_register_full(&riic0_info);	/* (Touchscreen) */
+	platform_device_register_full(&riic0_info);	/* Touchscreen and camera */
 //	platform_device_register_full(&riic1_info);	/* Not used */
 //	platform_device_register_full(&riic2_info);	/* Not used */
 	platform_device_register_full(&riic3_info);	/* Port Expander, EEPROM (MAC Addr), Audio Codec */
@@ -1624,7 +1626,7 @@ static void __init rskrza1_add_standard_devices(void)
 	pwm_add_table(pwm_lookup, ARRAY_SIZE(pwm_lookup));
 #endif
 	platform_device_register_full(&adc0_info);
-	platform_device_register_full(&sdhi0_info);
+//	platform_device_register_full(&sdhi0_info);	/* not populated on board */
 
 #ifndef CONFIG_MMC_SDHI
 	platform_device_register_full(&mmc_info);
