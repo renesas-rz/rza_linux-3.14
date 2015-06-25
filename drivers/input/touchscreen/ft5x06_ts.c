@@ -90,6 +90,7 @@ module_param_array(calibration, int, NULL, S_IRUGO | S_IWUSR);
 static int screenres[2] = {1280, 800};
 module_param_array(screenres, int, NULL, S_IRUGO | S_IWUSR);
 
+#ifndef CONFIG_MACH_RSKRZA1	/* not used for the RSK BSP */
 static void translate(int *px, int *py)
 {
 	int x, y, x1, y1;
@@ -113,6 +114,7 @@ static void translate(int *px, int *py)
 		*py = y ;
 	}
 }
+#endif
 
 static inline void ts_evt_add(struct ft5x06_ts *ts,
 			                  unsigned buttons, struct point *p)
@@ -194,8 +196,10 @@ static void read_report(struct ft5x06_ts *ts)
 	}	
 		
 	p = buf + 3; 
-	buttons = buf[2];
-	
+	buttons = buf[2] & 0x07;	/* Only look at the lower 3 bits because after power on,
+					   sometimes the upper bits are not '0's until the first
+					   physical touch */
+
 	if (buttons > 5) {
 		printk(KERN_ERR 
 		       "%s: invalid button count %02x\n",
