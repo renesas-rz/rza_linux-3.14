@@ -268,7 +268,7 @@ static int vdc5fb_update_regs(struct vdc5fb_priv *priv,
 	vdc5fb_write(priv, reg, tmp);
 
 	if (wait) {
-		timeout = 50;
+		timeout = 100;
 		do {
 			tmp = vdc5fb_read(priv, reg);
 			if ((tmp & bits) == 0)
