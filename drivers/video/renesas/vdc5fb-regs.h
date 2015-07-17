@@ -1088,11 +1088,15 @@ static const char *irq_names[VDC5FB_MAX_IRQS] = {
 /* IMGCNT_UPDATE */
 #define	IMGCNT_VEN		(1u << 0)
 /* SCx_SCLx_UPDATE, GRx_UPADTE, OIR_SCLx_UPDATE (x=0,1) */
-#define	SC_SCL_VEN_A		(1u << 0)
-#define	SC_SCL_VEN_B		(1u << 4)
-#define	SC_SCL_UPDATE		(1u << 8)
-#define	SC_SCL_VEN_C		(1u << 12)	/* not OIR_SCL1_UPDATE */
-#define	SC_SCL_VEN_D		(1u << 13)	/* not OIR_SCL1_UPDATE */
+#define	SC_SCL0_VEN_A		(1u << 0)
+#define	SC_SCL0_VEN_B		(1u << 4)
+#define	SC_SCL0_UPDATE		(1u << 8)
+#define	SC_SCL0_VEN_C		(1u << 12)	/* not OIR_SCL1_UPDATE */
+#define	SC_SCL0_VEN_D		(1u << 13)	/* not OIR_SCL1_UPDATE */
+#define	SC_SCL1_VEN_A		(1u << 0)
+#define	SC_SCL1_VEN_B		(1u << 4)
+#define	SC_SCL1_UPDATE_A	(1u << 16)
+#define	SC_SCL1_UPDATE_B	(1u << 20)
 /* ADJx_UPDATE */
 #define	ADJ_VEN			(1u << 0)
 /* GRx_UPDATE, GR_OIR_UPDATE (x=2,3) */

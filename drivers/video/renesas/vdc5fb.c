@@ -275,10 +275,13 @@ static int vdc5fb_update_regs(struct vdc5fb_priv *priv,
 				return 0;
 			udelay(1000);
 		} while (--timeout > 0);
-	/* wait for max. 50 ms... */
+	/* wait for max. 100 ms... */
 	}
-	dev_err(&priv->pdev->dev, "update_regs timeout at %d in %s\n",
-		__LINE__, __func__);
+	dev_err(&priv->pdev->dev, "update_regs timeout reg=%08lX, bits=%08lX, now=%08lX\n",
+		VDC5FB_REG_BASE(0) + vdc5fb_offsets[reg],
+		(long unsigned int)bits,
+		(long unsigned int)tmp);
+
 	return -1;
 }
 
@@ -544,7 +547,7 @@ static int vdc5fb_init_sync(struct vdc5fb_priv *priv)
 	vdc5fb_write(priv, GR_VIN_AB1, tmp);
 
 	/* Do update here. */
-	tmp = (SC_SCL_UPDATE | SC_SCL_VEN_B);
+	tmp = (SC_SCL0_UPDATE | SC_SCL0_VEN_B);
 	vdc5fb_update_regs(priv, SC0_SCL0_UPDATE, tmp, 1);
 	vdc5fb_update_regs(priv, SC1_SCL0_UPDATE, tmp, 1);
 #ifdef OUTPUT_IMAGE_GENERATOR
@@ -565,7 +568,7 @@ static int vdc5fb_init_scalers(struct vdc5fb_priv *priv)
 	/* Enable and setup scaler 0 */
 	if( priv->pdata->layers[0].xres ) {
 		vdc5fb_write(priv, SC0_SCL0_FRC3, SC_RES_VS_SEL);
-		vdc5fb_update_regs(priv, SC0_SCL0_UPDATE, SC_SCL_UPDATE, 1);
+		vdc5fb_update_regs(priv, SC0_SCL0_UPDATE, SC_SCL0_UPDATE, 1);
 
 		vdc5fb_write(priv, SC0_SCL0_DS1, 0);
 		vdc5fb_write(priv, SC0_SCL0_US1, 0);
@@ -599,7 +602,7 @@ static int vdc5fb_init_scalers(struct vdc5fb_priv *priv)
 	/* Enable and setup scaler 1 */
 	if( priv->pdata->layers[1].xres ) {
 		vdc5fb_write(priv, SC1_SCL0_FRC3, SC_RES_VS_SEL);
-		vdc5fb_update_regs(priv, SC1_SCL0_UPDATE, SC_SCL_UPDATE, 1);
+		vdc5fb_update_regs(priv, SC1_SCL0_UPDATE, SC_SCL0_UPDATE, 1);
 
 		vdc5fb_write(priv, SC1_SCL0_DS1, 0);
 		vdc5fb_write(priv, SC1_SCL0_US1, 0);
@@ -986,9 +989,12 @@ static int vdc5fb_update_all(struct vdc5fb_priv *priv)
 	tmp = IMGCNT_VEN;
 	vdc5fb_update_regs(priv, IMGCNT_UPDATE, tmp, 1);
 
-	tmp = (SC_SCL_VEN_A | SC_SCL_VEN_B | SC_SCL_UPDATE
-		| SC_SCL_VEN_C | SC_SCL_VEN_D);
+	tmp = (SC_SCL0_VEN_A | SC_SCL0_VEN_B | SC_SCL0_UPDATE
+		| SC_SCL0_VEN_C | SC_SCL0_VEN_D);
 	vdc5fb_update_regs(priv, SC0_SCL0_UPDATE, tmp, 1);
+
+	tmp = (SC_SCL1_VEN_A | SC_SCL1_VEN_B | SC_SCL1_UPDATE_A
+		| SC_SCL1_UPDATE_B);
 	vdc5fb_update_regs(priv, SC0_SCL1_UPDATE, tmp, 1);
 
 	tmp = (GR_IBUS_VEN | GR_P_VEN | GR_UPDATE);
