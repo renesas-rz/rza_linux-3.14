@@ -367,7 +367,7 @@ static int max9856_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, MAX9856_DAC_SYS, 0xF8, dac_sys);
+	snd_soc_update_bits(codec, MAX9856_DAC_SYS, 0xFC, dac_sys);
 	snd_soc_update_bits(codec, MAX9856_ADC_SYS, 0xC8, adc_sys);
 	snd_soc_update_bits(codec, MAX9856_CLOCK, MAX9856_CLOCK_MAS, clock);
 
