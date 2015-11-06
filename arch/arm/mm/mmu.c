@@ -1365,7 +1365,11 @@ static void __init kmap_init(void)
 static void __init map_lowmem(void)
 {
 	struct memblock_region *reg;
+#ifdef CONFIG_XIP_KERNEL
+	unsigned long kernel_x_start = round_down(__pa(_sdata), SECTION_SIZE);
+#else
 	unsigned long kernel_x_start = round_down(__pa(_stext), SECTION_SIZE);
+#endif
 	unsigned long kernel_x_end = round_up(__pa(__init_end), SECTION_SIZE);
 
 	/* Map all the lowmem memory banks. */
