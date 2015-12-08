@@ -1021,7 +1021,7 @@ static const char *irq_names[VDC5FB_MAX_IRQS] = {
 #define	GR_FLM_LNUM(x)		(((x) & 0x7ffu) << 16)
 /* GRx_FLM6, GR_OIR_FLM6 */
 //#define	GR_RDSWA(x)		(((x) & 0x7u) << 10)	/* moved to vdc5.h */
-#define	GR_HW(x)		(((x) & 0x3ff) << 16)
+#define	GR_HW(x)		(((x) & 0x7ff) << 16)
 //#define	GR_FORMAT(x)		(((x) & 0xfu) << 28)	/* moved to vdc5.h */
 #define	D_GR_FLM6_RGB565	(GR_RDSWA(6) | GR_FORMAT(0))
 #define	D_GR_FLM6_RGB888	(GR_RDSWA(4) | GR_FORMAT(1))
