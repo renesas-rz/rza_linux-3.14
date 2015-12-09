@@ -65,6 +65,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/can/platform/rza1_can.h>
 
+/* If an XIP kernel has its memory address set to the begining
+   of internal RAM, we'll assume that external SDRAM is not
+   availible and we should try to reserve RAM when possible */
+#define XIP_KERNEL_WITHOUT_EXTERNAL_RAM (defined(CONFIG_XIP_KERNEL) && (CONFIG_PHYS_OFFSET == 0x20000000))
+
 /* Board Options */
 //#define RSPI_TESTING	/* Uncomment for RSPI4 enabled on CN15 */
 
@@ -202,7 +207,7 @@ static const struct rza1_dma_slave_config rza1_dma_slaves[] = {
 static const struct rza1_dma_pdata dma_pdata __initconst = {
 	.slave		= rza1_dma_slaves,
 	.slave_num	= ARRAY_SIZE(rza1_dma_slaves),
-#ifdef CONFIG_XIP_KERNEL
+#if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
 	.channel_num	= 6,	/* Less channels means less RAM (2 for SDHI, 4 for Audio) */
 #else
 	.channel_num	= 16,	/* 16 MAX channels */
@@ -292,7 +297,7 @@ static void vdc5fb_pinmux_tcon(struct pfc_pinmux_assign *pf, size_t num,
 			r7s72100_pfc_pin_assign(pf->port, pf->mode, DIIO_PBDC_DIS);
 }
 
-#ifdef CONFIG_XIP_KERNEL
+#if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
 #define VDC5_BPP 16 /* 16bpp or 32bpp */
 #define VDC5_FBSIZE (800*480*VDC5_BPP/8)
 /* Let the VDC5 driver carve out the frame buffer out of system memory during boot */
@@ -1460,8 +1465,8 @@ static struct resource ceu_resources[] = {
 		.start  = gic_iid(364),
 		.flags  = IORESOURCE_IRQ,
 	},
-#ifdef CONFIG_XIP_KERNEL
-	/* CEU Requires dedicated memory when in XIP mode, as there's not enough continguous
+#if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
+	/* CEU Requires dedicated memory when in XIP mode, as there's not enough contiguous
 	 * memory for the buffers. You must also specify mem=8M on the kernel command line */
 	[2] = {
 		.name	= "CEU Buffer",
@@ -1533,7 +1538,7 @@ static void __init rskrza1_add_standard_devices(void)
 	l2x0_init(IOMEM(0xfffee000), 0x00000000, 0xffffffff);	/* Leave as defaults */
 #endif
 #endif
-#ifdef CONFIG_XIP_KERNEL
+#if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
 	remove_irqs();
 #endif
 
@@ -1589,7 +1594,7 @@ static void __init rskrza1_add_standard_devices(void)
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
 
-#ifndef CONFIG_XIP_KERNEL	/* TODO: Uses too much internal RAM */
+#if !(XIP_KERNEL_WITHOUT_EXTERNAL_RAM)	/* Uses too much internal RAM */
 	platform_device_register_full(&jcu_info);
 #endif
 	platform_device_register_full(&ostm_info);
@@ -1769,7 +1774,7 @@ void __init r7s72100_init_early(void)
 {
 	shmobile_init_delay();
 
-#ifdef CONFIG_XIP_KERNEL
+#if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
 	/* Set the size of our pre-allocated DMA buffer pool because the
 	   default is 256KB */
 	init_dma_coherent_pool_size(16 * SZ_1K);
