@@ -724,14 +724,15 @@ static int vdc5fb_init_graphics(struct vdc5fb_priv *priv)
 			continue;
 		}
 
-		printk("vdc5fb: Layer %u Enabled (%ux%u)\n",i,layer->xres,layer->yres);
-
 		vdc5fb_iowrite32(GR_R_ENB, update_addr[i] + GR_FLM_RD_OFFSET);
 		vdc5fb_iowrite32(GR_FLM_SEL(1), update_addr[i] + GR_FLM1_OFFSET); /* scalers MUST use FLM_SEL */
 		if( layer->base == 0 )
 			layer->base = priv->dma_handle;	/* Allocated during probe */
 		if( layer->base >= 0xC0000000 )
 			layer->base = virt_to_phys((void *)layer->base);	/* Convert to physical address */
+
+		printk("vdc5fb: Layer %u Enabled (%ux%u @ 0x%08x)\n",i,layer->xres,layer->yres, layer->base);
+
 		vdc5fb_iowrite32(layer->base, update_addr[i] + GR_FLM2_OFFSET);	/* frame buffer address*/
 		tmp = GR_LN_OFF(layer->xres * (layer->bpp / 8));	/* length of each line (and Frame Number=0)*/
 		vdc5fb_iowrite32(tmp, update_addr[i] + GR_FLM3_OFFSET);
