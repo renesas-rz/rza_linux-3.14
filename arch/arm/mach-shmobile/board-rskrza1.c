@@ -1721,7 +1721,7 @@ static void __init rskrza1_init_late(void)
 			i = rza1_i2c_write_byte(3, 0x21, 0x01, value);
 		if ( !i ) {
 			/* Enable SPI4 pins */
-			/* RSKRZA1 Board SPI4 is on CN15 (but that means you can use Ethernet) */
+			/* RSKRZA1 Board SPI4 is on CN15 (but that means you can't use Ethernet) */
 			r7s72100_pfc_pin_assign(P2_8, ALT8, DIIO_PBDC_EN);	/* RSPCK4 */
 			r7s72100_pfc_pin_assign(P2_9, ALT8, DIIO_PBDC_EN);	/* SSL40 */
 			r7s72100_pfc_pin_assign(P2_10, ALT8, DIIO_PBDC_EN);	/* MOSI4 */

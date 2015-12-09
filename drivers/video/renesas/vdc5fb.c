@@ -327,7 +327,7 @@ static int vdc5fb_init_lvds(struct vdc5fb_priv *priv)
 	u32 tmp;
 
 	/*
-	  To semplify:
+	  To simplify:
 	   - fix input clock to peripheral1 = 66650000 Hz
 	   - fix NIDIV to 4 => FIN = source / 4 = 16662500 Hz
 	   - fix NRD to 5 => FREF = FIN / 5 = source / 20 = 3332500 Hz
