@@ -1552,7 +1552,18 @@ static int vdc5fb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot get resources (reg)\n");
 		goto err1;
 	}
-	priv->base = ioremap_nocache(res->start, resource_size(res));
+
+	/* Because the LVDS registers sit between ch0 and ch1, we need to
+	   map both ch0 and ch1 areas if the ch1 wants to use LVDS.
+	   See function vdc5fb_read() and vdc5fb_write() */
+	if( priv->pdev->id && pdata->use_lvds) {
+		priv->base = ioremap_nocache(res->start - 0x2000, resource_size(res) + 0x2000);
+		priv->base += 0x2000;	/* Adjust back to start of ch0 registers */
+		/* NOTE: iounmapping priv->base won't be correct at this point */
+	}
+	else {
+		priv->base = ioremap_nocache(res->start, resource_size(res));
+	}
 	priv->fbsize = resource_size(res);
 	if (!priv->base) {
 		dev_err(&pdev->dev, "cannot ioremap (reg)\n");
