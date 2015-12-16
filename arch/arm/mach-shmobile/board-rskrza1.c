@@ -61,6 +61,7 @@
 #include <media/soc_camera.h>
 #include <media/soc_camera_platform.h>
 #include <media/ov7670.h>
+#include <linux/platform_data/simplefb.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
 #include <linux/can/platform/rza1_can.h>
@@ -74,6 +75,13 @@
 //#define RSPI_TESTING	/* Uncomment for RSPI4 enabled on CN15 */
 
 
+
+/*
+ * early_usbgs()
+ * - This allows you to select if you want to use
+ *   USB gadget or not.
+ * - Optional: This was just an easy way to switch this for testing
+ */
 static int usbgs = -1;
 static int __init early_usbgs(char *str)
 {
@@ -83,6 +91,11 @@ static int __init early_usbgs(char *str)
 }
 early_param("usbgs", early_usbgs);
 
+/* ==========================================================
+ *			IO Map Section
+ *
+ * Maps physical addresses to virtual addresses
+ * ==========================================================*/
 static struct map_desc rza1_io_desc[] __initdata = {
 	/* create a 1:1 entity map for 0xe8xxxxxx
 	 * used by INTC.
@@ -115,6 +128,11 @@ static struct map_desc rza1_io_desc[] __initdata = {
 #endif
 };
 
+/*
+ * rza1_map_io()
+ * - Called early to set up mappings
+ * - Call twice during boot (before and after MMU setup)
+ */
 void __init rza1_map_io(void)
 {
 #ifdef CONFIG_DEBUG_LL
@@ -126,7 +144,11 @@ void __init rza1_map_io(void)
 }
 
 
-/* DMA */
+/* ==========================================================
+ *			DMA Section
+ *
+ * Defines RZ/A1 DMA channels
+ * ==========================================================*/
 #define CHCFG(reqd_v, loen_v, hien_v, lvl_v, am_v, sds_v, dds_v, tm_v)\
 	{								\
 		.reqd	=	reqd_v,					\
@@ -230,7 +252,17 @@ static const struct platform_device_info dma_info  __initconst = {
 	.size_data	= sizeof(dma_pdata),
 };
 
-/* Video */
+/* ==========================================================
+ *			LCD 0 Video Section
+ * Defines VDC5 ch0 LCD controller
+ * Board Specific Portions:
+ * 	- main clock speed
+ * 	- Pin mux setup for Parallel LCD
+ *	- LCD panel description
+ *	- Frame buffer layers
+ * ==========================================================*/
+
+/* BOARD: Change if not using 13.33MHz main crystal */
 #define	P1CLK			((13330000 * 30) / 6)
 #define	PIXCLOCK(hz, div)	\
 	(u32)(1000000000000 / ((double)(hz) / (double)(div)))
@@ -241,6 +273,7 @@ struct pfc_pinmux_assign {
 	int opts;
 };
 
+/* BOARD: Change if your [LCD0] is on different pins */
 static struct pfc_pinmux_assign lcd0_common[] = {
 	{ P11_15, ALT5, },	/* LCD0_CLK */
 	{ P11_7,  ALT5, },	/* LCD0_DATA0 */
@@ -269,6 +302,8 @@ static struct pfc_pinmux_assign lcd0_common[] = {
 	{ P10_0,  ALT5, },	/* LCD0_DATA23 */
 };
 
+/* BOARD: Change if your [LCD0] is on different pins */
+/* NOTE: Unused TCONS will be left as GPIO */
 static struct pfc_pinmux_assign lcd0_tcon[] = {
 	{ P11_14, ALT5, },	/* LCD0_TCON0 */
 	{ P11_13, ALT5, },	/* LCD0_TCON1 */
@@ -279,59 +314,73 @@ static struct pfc_pinmux_assign lcd0_tcon[] = {
 	{ P11_8,  ALT5, },	/* LCD0_TCON6 */
 };
 
-static void vdc5fb_pinmux(struct pfc_pinmux_assign *pf, size_t num)
-{
-	size_t n;
+/* LCD Frame buffer Declaration
+VDC5_0_BPP:
+	This is the Frame buffer size your application will access (/dev/fb0)
+	Set to either '16' or '32'
+	Note that the color depth of your frame buffer does not have to be the same
+	color depth of your panel. For example, even if you have a full 24-bit LCD panel,
+	you can still set this to 16 or lower.
 
-	for (n = 0; n < num; pf++, n++)
-		r7s72100_pfc_pin_assign(pf->port, pf->mode, DIIO_PBDC_DIS);
-}
+VDC5_0_FBSIZE:
+	Set to the total BYTE size of your frame buffer.
 
-static void vdc5fb_pinmux_tcon(struct pfc_pinmux_assign *pf, size_t num,
-	struct vdc5fb_pdata *pdata)
-{
-	size_t n;
+VDC5_0_FB_ADDR:
+	Set this to the location of your frame buffer in INTERNAL RAM.
+	You can either hard code this address, or set it to 0 and it will
+	be allocated for you during 'probe' (but only if using internal RAM
+	only and your frame buffer is under 1MB).
+*/
 
-	for (n = 0; n < num; pf++, n++)
-		if (pdata->tcon_sel[n] != TCON_SEL_UNUSED)
-			r7s72100_pfc_pin_assign(pf->port, pf->mode, DIIO_PBDC_DIS);
-}
-
+/* BOARD: Define your [LCD0] frame buffer location and size. */
 #if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
-#define VDC5_BPP 16 /* 16bpp or 32bpp */
-#define VDC5_FBSIZE (800*480*VDC5_BPP/8)
-/* Let the VDC5 driver carve out the frame buffer out of system memory during boot */
-#define VDC5_FB_ADDR 0	/* allcoate at probe */
-
+  #define VDC5_0_BPP 16 /* 16bpp or 32bpp */
+  #define VDC5_0_FBSIZE (800*480*VDC5_0_BPP/8)
+  #define VDC5_0_FB_ADDR 0	/* allcoate at probe */
 #else
-#define VDC5_BPP 32 /* 16bpp or 32bpp */
-#define VDC5_FBSIZE (800*480*VDC5_BPP/8)
-/* Assume we are using external SDRAM for system memory so we have all
-   the internal memory just for our LCD frame buffer */
-/* Place at end of internal RAM, but on a PAGE boundry */
-#define VDC5_FB_ADDR ((0x20A00000 - VDC5_FBSIZE) & PAGE_MASK)
+  #define VDC5_0_BPP 32 /* 16bpp or 32bpp */
+  #define VDC5_0_FBSIZE (800*480*VDC5_0_BPP/8)
+
+  /* Assume we are using external SDRAM for system memory so we have all
+     the internal memory just for our LCD frame buffer */
+  /* Place at end of internal RAM, but on a PAGE boundry */
+  //#define VDC5_0_FB_ADDR ((0x20A00000 - VDC5_0_FBSIZE) & PAGE_MASK)
+
+  /* Fixed allocation */
+  #define VDC5_0_FB_ADDR (0x60000000) /* PAGE 0 (2MB) */
 #endif
 
-/* Sample: Graphics 3 - Image Synthesizer */
-//uint8_t gr3_fb[ 200*200*4 ] __attribute__ ((aligned (PAGE_SIZE)));
-
-static const struct resource vdc5fb_resources[VDC5FB_NUM_RES] __initconst = {
+static const struct resource vdc5fb0_resources[VDC5FB_NUM_RES] __initconst = {
 	[0] = DEFINE_RES_MEM_NAMED(0xfcff6000, 0x00002000, "vdc5fb.0: reg"),
-	[1] = DEFINE_RES_MEM_NAMED(VDC5_FB_ADDR, VDC5_FBSIZE, "vdc5fb.0: fb"),
+	[1] = DEFINE_RES_MEM_NAMED(VDC5_0_FB_ADDR, VDC5_0_FBSIZE, "vdc5fb.0: fb"),
 	[2] = DEFINE_RES_NAMED(75, 23, "vdc5fb.0: irq", IORESOURCE_IRQ),
 };
 
-static int vdc5fb_pinmux_gwp0700cnwv04(struct platform_device *pdev)
+static int vdc5fb_0_pinmux(struct platform_device *pdev)
 {
+	size_t n, total;
+	struct pfc_pinmux_assign *pf;
 	struct vdc5fb_pdata *pdata
 	    = (struct vdc5fb_pdata *)pdev->dev.platform_data;
 
-	vdc5fb_pinmux(lcd0_common, ARRAY_SIZE(lcd0_common));
-	vdc5fb_pinmux_tcon(lcd0_tcon, ARRAY_SIZE(lcd0_tcon), pdata);
+	/* Assign the LCD_0 pins */
+	pf = lcd0_common;
+	total = ARRAY_SIZE(lcd0_common);
+	for (n = 0; n < total; pf++, n++)
+		r7s72100_pfc_pin_assign(pf->port, pf->mode, DIIO_PBDC_DIS);
+
+	/* Assing only the TCON_0 pins that will be used */
+	pf = lcd0_tcon;
+	total = ARRAY_SIZE(lcd0_tcon);
+	for (n = 0; n < total; pf++, n++)
+		if (pdata->tcon_sel[n] != TCON_SEL_UNUSED)
+			r7s72100_pfc_pin_assign(pf->port, pf->mode, DIIO_PBDC_DIS);
 
 	return 0;
 }
 
+/* This structure defines the panel timings */
+/* BOARD: You should rename this strucutre to match your LCD panel */
 static struct fb_videomode videomode_gwp0700cnwv04 = {
 	.name		= "gwp0700cnwv04",
 	.refresh	= 60,
@@ -349,11 +398,24 @@ static struct fb_videomode videomode_gwp0700cnwv04 = {
 	.flag		= 0,
 };
 
+#if 0 /* FLOATING LAYER SAMPLE */
+/* Graphics 3 - Image Synthesizer */
+/* Creates a 200x200 32-bit ARGB floating layer */
+
+#if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
+uint8_t gr3_fb[ 200*200*4 ] __attribute__ ((aligned (PAGE_SIZE)));
+#else
+#define gr3_fb 0x60600000 /* hard coded */
+#endif
+#endif
+
+/* BOARD: You should rename this strucutre to match your LCD panel */
+/* This structure passing info to the VDC5 driver */
 static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata = {
 	.name			= "gwp0700cnwv04",
 	.videomode		= &videomode_gwp0700cnwv04,
 	.panel_icksel		= ICKSEL_P1CLK,
-	.bpp			= VDC5_BPP,
+	.bpp			= VDC5_0_BPP,
 	.panel_width		= 154,	/* mm, unused */
 	.panel_height		= 86,	/* mm, unused */
 	.flm_max		= 1,
@@ -368,7 +430,7 @@ static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata = {
 		[LCD_TCON5]	= TCON_SEL_UNUSED,	/* LR_INV */
 		[LCD_TCON6]	= TCON_SEL_UNUSED,	/* UD_INV */
 	},
-	.pinmux			= vdc5fb_pinmux_gwp0700cnwv04,
+	.pinmux			= vdc5fb_0_pinmux,
 	.layers			= {
 		/* Graphics 2 - Image Synthesizer */
 		/* Full LCD Panel - will be /dev/fb0 */
@@ -376,18 +438,18 @@ static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata = {
 		[2].yres	= 480,
 		[2].x_offset	= 0,
 		[2].y_offset	= 0,
-#if VDC5_BPP == 16
+#if VDC5_0_BPP == 16
 		[2].format	= GR_FORMAT(GR_FORMAT_RGB565) | GR_RDSWA(6),
 #else
 		[2].format	= GR_FORMAT(GR_FORMAT_ARGB8888) | GR_RDSWA(4),
 #endif
-		[2].bpp		= VDC5_BPP,
-		[2].base	= VDC5_FB_ADDR,
+		[2].bpp		= VDC5_0_BPP,
+		[2].base	= VDC5_0_FB_ADDR,
 		[2].blend	 = 0,
 
-#if 0 /* SAMPLE */
+#if 0 /* FLOATING LAYER SAMPLE */
 		/* Graphics 3 - Image Synthesizer */
-		/* Layer 3 - floating layer (Alpha blending) */
+		/* Creates a 200x200 32-bit ARGB floating layer */
 		[3].xres	= 200,
 		[3].yres	= 200,
 		[3].x_offset	= 100,
@@ -400,17 +462,47 @@ static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata = {
 	},
 };
 
-static const struct platform_device_info vdc5fb_info __initconst = {
+static const struct platform_device_info vdc5fb0_info __initconst = {
 	.name		= "vdc5fb",
-	.id		= 0,
-	.res		= vdc5fb_resources,
-	.num_res	= ARRAY_SIZE(vdc5fb_resources),
+	.id		= 0,	/* ch 0 */
+	.res		= vdc5fb0_resources,
+	.num_res	= ARRAY_SIZE(vdc5fb0_resources),
 	.data		= &vdc5fb_gwp0700cnwv04_pdata,
 	.size_data	= sizeof(vdc5fb_gwp0700cnwv04_pdata),
 	.dma_mask	= DMA_BIT_MASK(32),	/* only needed if not hardcoding fb */
 };
 
-/* JCU */
+#if 0 /* FLOATING LAYER SAMPLE */
+	/* Graphics 3 - Image Synthesizer */
+	/* Map our floating layer as /dev/fb1 */
+  #ifndef CONFIG_FB_SIMPLE
+    #error Requires CONFIG_FB_SIMPLE=y
+  #endif
+
+/* simple-framebuffer */
+static const struct resource simplefb_resources[] __initconst = {
+	DEFINE_RES_MEM_NAMED(gr3_fb, 200*200*4, "vdc5_alpha.0: fb"),
+};
+static const struct simplefb_platform_data simplefb_pdata = {
+	.width = 200,
+	.height = 200,
+	.stride = 200 * 4,
+	.format = "a8r8g8b8",
+};
+static const struct platform_device_info simplefb_info __initconst = {
+	.parent		= &platform_bus,
+	.name		= "simple-framebuffer",
+	.id		= -1,
+	.res		= simplefb_resources,
+	.num_res	= ARRAY_SIZE(simplefb_resources),
+	.data		= &simplefb_pdata,
+	.size_data	= sizeof(simplefb_pdata),
+};
+#endif /* FLOATING LAYER SAMPLE */
+
+/* ==========================================================
+ *			JCU Section
+ * ==========================================================*/
 static const struct uio_info jcu_platform_pdata __initconst = {
 	.name = "JCU",
 	.version = "0",
@@ -420,7 +512,7 @@ static const struct uio_info jcu_platform_pdata __initconst = {
 static const struct resource jcu_resources[] __initconst = {
 	DEFINE_RES_MEM_NAMED(0xe8017000, 0x1000, "jcu:reg"), /* for JCU of RZ */
 	DEFINE_RES_MEM_NAMED(0xfcfe0000, 0x2000, "jcu:rstreg clkreg"), /* Use STBCR6 & SWRSTCR2 */
-	DEFINE_RES_MEM_NAMED(0x20200000, 0x100000, "jcu:iram"), /* (Non cacheable 1MB) */
+	DEFINE_RES_MEM_NAMED(0x60800000, 0x100000, "jcu:iram"), /* (Non cacheable 1MB) */
 };
 
 static const struct platform_device_info jcu_info __initconst = {
@@ -432,7 +524,9 @@ static const struct platform_device_info jcu_info __initconst = {
 	.num_res	= ARRAY_SIZE(jcu_resources),
 };
 
-/* Ether */
+/* ==========================================================
+ *                Ethernet Section
+ * ==========================================================*/
 static const struct sh_eth_plat_data ether_pdata __initconst = {
 	.phy			= 0x00, /* PD60610 */
 	.edmac_endian		= EDMAC_LITTLE_ENDIAN,
@@ -457,6 +551,9 @@ static const struct platform_device_info ether_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* ==========================================================
+ *                     I2C Section
+ * ==========================================================*/
 /* I2C0*/
 static const struct resource riic0_resources[] __initconst = {
 	DEFINE_RES_MEM(0xfcfee000, 0x400),
@@ -567,16 +664,18 @@ static const struct platform_device_info riic3_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+/* ==========================================================
+ *		I2C Device Section
+ *
+ * Define devices that reside on I2C busses that
+ * need to be discovered
+ * ==========================================================*/
+
+/* BOARD: This is the Capacitive touchscreen controller that
+	  is on the RSK board */
 static struct edt_ft5x06_platform_data ft5216_pdata __initdata = {
 	.irq_pin	= -1,
 	.reset_pin	= -1,
-
-	/* startup defaults for operational parameters */
-//	bool use_parameters;
-//	u8 gain;
-//	u8 threshold;
-//	u8 offset;
-//	u8 report_rate;
 };
 
 
@@ -587,14 +686,6 @@ static const struct i2c_board_info i2c0_devices[] __initconst = {
 		.irq		= 33,
 	},
 };
-
-/* Init TC_IRQ1 as input */
-static void __init gpio_irq_init(void) {
-	/* Set for low edge trigger */
-	void __iomem *irc1 = IOMEM(0xfcfef802);
-	__raw_writew((__raw_readw(irc1) & ~(0x3 << 2)), irc1);
-	r7s72100_pfc_pin_assign(P4_9, ALT8, DIIO_PBDC_DIS);  /* IRQ1 */
-}
 
 static struct at24_platform_data eeprom_pdata = {
 	.byte_len = 2048,
@@ -611,7 +702,13 @@ static const struct i2c_board_info i2c3_devices[] __initconst = {
 	},
 };
 
-/* OSTM */
+/* ==========================================================
+ *			OS Timer Section
+ *
+ * High precision OS Timer
+ * When using this timer as a system time, you can get better
+ * accuracy then the default MTU2 timer.
+ * ==========================================================*/
 static struct rza1_ostm_pdata ostm_pdata = {
 	.clksrc.name = "ostm.0",
 	.clksrc.rating = 300,
@@ -635,7 +732,9 @@ static const struct platform_device_info ostm_info __initconst = {
 	.num_res	= ARRAY_SIZE(ostm_resources),
 };
 
-/* RTC */
+/* ==========================================================
+ *			RTC Section
+ * ==========================================================*/
 static const struct resource rtc_resources[] __initconst = {
 	DEFINE_RES_MEM(0xfcff1000, 0x2e),
 	DEFINE_RES_IRQ(gic_iid(309)),	/* Period IRQ */
@@ -652,7 +751,10 @@ static const struct platform_device_info rtc_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
-/* NOR Flash */
+/* ==========================================================
+ *		Parallel NOR Flash Section
+ * ==========================================================*/
+/* BOARD: You can define the partitions however you want */
 static struct mtd_partition nor_flash_partitions[] __initdata = {
 	{
 		.name		= "nor_u-boot",
@@ -703,8 +805,89 @@ static const struct platform_device_info nor_flash_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
-/* SPI NOR Flash */
-/* Single Flash only */
+/* ==========================================================
+ *		RSPI Section
+ *
+ * Standard SPI controller
+ * ==========================================================*/
+#define RSPI_RESOURCE(idx, baseaddr, irq)				\
+static const struct resource rspi##idx##_resources[] __initconst = {	\
+	DEFINE_RES_MEM(baseaddr, 0x24),					\
+	DEFINE_RES_IRQ_NAMED(irq, "error"),				\
+	DEFINE_RES_IRQ_NAMED(irq + 1, "rx"),				\
+	DEFINE_RES_IRQ_NAMED(irq + 2, "tx"),				\
+}
+
+RSPI_RESOURCE(0, 0xe800c800, gic_iid(270));
+RSPI_RESOURCE(1, 0xe800d000, gic_iid(273));
+RSPI_RESOURCE(2, 0xe800d800, gic_iid(276));
+RSPI_RESOURCE(3, 0xe800e000, gic_iid(279));
+RSPI_RESOURCE(4, 0xe800e800, gic_iid(282));
+
+static const struct rspi_plat_data rspi_pdata __initconst = {
+	.num_chipselect	= 1,
+};
+
+#define r7s72100_register_rspi(idx)					   \
+	platform_device_register_resndata(&platform_bus, "rspi-rz", idx,   \
+					rspi##idx##_resources,		   \
+					ARRAY_SIZE(rspi##idx##_resources), \
+					&rspi_pdata, sizeof(rspi_pdata))
+
+/* ==========================================================
+ *		QSPI Flash Controller Section
+ *
+ * SPI Multi I/O
+ * Supports Single SPI flash only
+ * "SPIBSC" = SPI Bus State Controller
+ * ==========================================================*/
+/* SPIBSC0 */
+static const struct sh_spibsc_info spibsc0_pdata = {
+	.bus_num	= 5,
+};
+
+static const struct resource spibsc0_resources[] __initconst = {
+	DEFINE_RES_MEM(0x3fefa000, 0x100),
+};
+
+static const struct platform_device_info spibsc0_info __initconst = {
+	.name		= "spibsc",
+	.id		= 0,
+	.data 		= &spibsc0_pdata,
+	.size_data	= sizeof(spibsc0_pdata),
+	.num_res	= ARRAY_SIZE(spibsc0_resources),
+	.res		= spibsc0_resources,
+};
+
+/* SPIBSC1 */
+static const struct sh_spibsc_info spibsc1_pdata = {
+	.bus_num	= 6,
+};
+
+static const struct resource spibsc1_resources[] __initconst = {
+	DEFINE_RES_MEM(0x3fefb000, 0x100),
+};
+
+static const struct platform_device_info spibsc1_info __initconst = {
+	.name		= "spibsc",
+	.id		= 1,
+	.data 		= &spibsc1_pdata,
+	.size_data	= sizeof(spibsc1_pdata),
+	.num_res	= ARRAY_SIZE(spibsc1_resources),
+	.res		= spibsc1_resources,
+};
+
+/* ==========================================================
+ *		External SPI Flash Device Section
+ *
+ * Register the external SPI flash devices
+ * Define the partitions of the flash devices
+ * ==========================================================*/
+/* BOARD: This structure is to define what external SPI Flash device
+	  you have connected */
+
+/* BOARD: You can define the partitions however you want */
+/* Spansion flash on SPIBSC0 */
 static struct mtd_partition spibsc0_flash_partitions[] = {
 	{
 		.name		= "spibsc0_loader",
@@ -714,29 +897,25 @@ static struct mtd_partition spibsc0_flash_partitions[] = {
 	},
 	{
 		.name		= "spibsc0_bootenv",
-		.offset		= MTDPART_OFS_APPEND,
+		.offset		= 0x00080000,
+		.size		= 0x00040000,
+	},
+	{
+		.name		= "spibsc0_dtbs",
+		.offset		= 0x000C0000,
 		.size		= 0x00040000,
 	},
 	{
 		.name		= "spibsc0_kernel",
-		.offset		= MTDPART_OFS_APPEND,
-		.size		= 0x00400000,
+		.offset		= 0x00100000,
+		.size		= 0x00700000,
 	},
 	{
 		.name		= "spibsc0_rootfs",
-		.offset		= MTDPART_OFS_APPEND,
+		.offset		= 0x00800000,
 		.size		= MTDPART_SIZ_FULL,
 	},
 };
-
-static struct mtd_partition spibsc1_flash_partitions[] = {
-	{
-		.name		= "spibsc1_data",
-		.offset		= 0x00000000,
-		.size		= MTDPART_SIZ_FULL,
-	},
-};
-
 static struct flash_platform_data spibsc0_flash_pdata = {
 	.name	= "m25p80",
 	.parts	= spibsc0_flash_partitions,
@@ -744,15 +923,70 @@ static struct flash_platform_data spibsc0_flash_pdata = {
 	.type = "s25fl512s",
 };
 
+#if 0 /* Just for example, not populated on RSK */
+/* Dummy flash on SPIBSC1 */
+static struct mtd_partition spibsc1_flash_partitions[] = {
+	{
+		.name		= "spibsc1_data",
+		.offset		= 0x00000000,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
 static struct flash_platform_data spibsc1_flash_pdata = {
 	.name	= "m25p80",
 	.parts	= spibsc1_flash_partitions,
 	.nr_parts = ARRAY_SIZE(spibsc1_flash_partitions),
 	.type = "s25fl512s",
 };
+#endif
 
-/* QSPI Flash (Memory Map Mode, read only) */
-/* Dual Flash */
+/* Group the SPI flash devices so they can be reigstered */
+static struct spi_board_info rskrza1_spi_devices[] __initdata = {
+#if defined(RSPI_TESTING)
+	{
+		/* spidev */
+		.modalias		= "spidev",
+		.max_speed_hz           = 5000000,
+		.bus_num                = 4,
+		.chip_select            = 0,
+		.mode			= SPI_MODE_3,
+	},
+#endif
+	{
+		/* SPI Flash0 */
+		.modalias = "m25p80",
+		.bus_num = 5,
+		.chip_select = 0,
+		.platform_data = &spibsc0_flash_pdata,
+	},
+#if 0 /* Just for example */
+	{
+		/* SPI Flash1 */
+		.modalias = "m25p80",
+		.bus_num = 6,
+		.chip_select = 0,
+		.platform_data = &spibsc1_flash_pdata,
+	},
+#endif
+};
+
+
+
+/* ==========================================================
+ *		MTD ROM Section
+ *		(Memory mapped QSPI)
+ *
+ * This assume u-boot has already memory mapped the QSPI
+ * Flash in XIP mode. This a generic kernel driver to map
+ * that linear physical memory space to a MTD device so
+ * you can mount a root file system.
+ *
+ * Memory space is read only.
+ * ==========================================================*/
+
+/* BOARD: Since the QSPI memory mapping starts at 0x18000000,
+          this mapping for a rootfs image at 0x18800000 (as in
+	  a 0x00800000 offset). */
 static struct mtd_partition qspi_flash_partitions[] __initdata = {
 	{
 		.name		= "qspi_rootfs",
@@ -783,9 +1017,56 @@ static const struct platform_device_info qspi_flash_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
-/* PWM Pin (Pin TIOC4A only) */
-/* RSKRZA1 does not have TIOC4A attached to anything */
-#if 0
+/* ==========================================================
+ *		SCIF Section
+ * UART
+ * ==========================================================*/
+#define R7S72100_SCIF(index, baseaddr, irq)				\
+static const struct plat_sci_port scif##index##_platform_data = {	\
+	.type		= PORT_SCIF,					\
+	.regtype	= SCIx_SH2_SCIF_FIFODATA_REGTYPE,		\
+	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,		\
+	.capabilities	= SCIx_HAVE_RTSCTS,				\
+	.scscr		= SCSCR_RIE | SCSCR_TIE | SCSCR_RE | SCSCR_TE |	\
+			  SCSCR_REIE,					\
+};									\
+									\
+static struct resource scif##index##_resources[] = {			\
+	DEFINE_RES_MEM(baseaddr, 0x100),				\
+	DEFINE_RES_IRQ(irq + 1),					\
+	DEFINE_RES_IRQ(irq + 2),					\
+	DEFINE_RES_IRQ(irq + 3),					\
+	DEFINE_RES_IRQ(irq),						\
+}									\
+
+/* BOARD: To save on RAM usage, we are only declaring the SCIF
+	  channels we plan on using. Modify if you plan on
+	  using other channels */
+//R7S72100_SCIF(0, 0xe8007000, gic_iid(221));	/* Not used */
+//R7S72100_SCIF(1, 0xe8007800, gic_iid(225));	/* Not used */
+R7S72100_SCIF(2, 0xe8008000, gic_iid(229));
+//R7S72100_SCIF(3, 0xe8008800, gic_iid(233));	/* Not used */
+//R7S72100_SCIF(4, 0xe8009000, gic_iid(237));	/* Not used */
+//R7S72100_SCIF(5, 0xe8009800, gic_iid(241));	/* Not used */
+//R7S72100_SCIF(6, 0xe800a000, gic_iid(245));	/* Not used */
+//R7S72100_SCIF(7, 0xe800a800, gic_iid(249));	/* Not used */
+
+#define r7s72100_register_scif(index)					       \
+	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+					  scif##index##_resources,	       \
+					  ARRAY_SIZE(scif##index##_resources), \
+					  &scif##index##_platform_data,	       \
+					  sizeof(scif##index##_platform_data))
+
+/* ==========================================================
+ *		PWM/LCD Backlight Section
+ *
+ * This is just a driver example for PWM Pin (Pin TIOC4A only)
+ * RSKRZA1 does not have TIOC4A attached to anything.
+ * This PWM driver was intended to be used as a variable LCD
+ * backlight driver. It was devleoped on a different RZ/A1 board.
+ * ==========================================================*/
+#if 0 /* Just as an example */
 static const struct resource pwm_resources[] __initconst = {
 	DEFINE_RES_MEM(0xfcff0200, 0x4c),	/* mtu2_3,4 */
 	DEFINE_RES_MEM(0xfcff0280, 0x6),	/* mtu2 share regs */
@@ -800,7 +1081,7 @@ static const struct platform_device_info pwm0_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
-/* Backlight */
+/* Backlight Registration */
 static struct platform_pwm_backlight_data pwm_backlight_pdata = {
 	.max_brightness = 255,
 	.dft_brightness = 255,
@@ -819,96 +1100,14 @@ static const struct platform_device_info pwm_backlight_info __initconst = {
 };
 #endif
 
-/* RSPI */
-#define RSPI_RESOURCE(idx, baseaddr, irq)				\
-static const struct resource rspi##idx##_resources[] __initconst = {	\
-	DEFINE_RES_MEM(baseaddr, 0x24),					\
-	DEFINE_RES_IRQ_NAMED(irq, "error"),				\
-	DEFINE_RES_IRQ_NAMED(irq + 1, "rx"),				\
-	DEFINE_RES_IRQ_NAMED(irq + 2, "tx"),				\
-}
-
-RSPI_RESOURCE(0, 0xe800c800, gic_iid(270));
-RSPI_RESOURCE(1, 0xe800d000, gic_iid(273));
-RSPI_RESOURCE(2, 0xe800d800, gic_iid(276));
-RSPI_RESOURCE(3, 0xe800e000, gic_iid(279));
-RSPI_RESOURCE(4, 0xe800e800, gic_iid(282));
-
-static const struct rspi_plat_data rspi_pdata __initconst = {
-	.num_chipselect	= 1,
-};
-
-#define r7s72100_register_rspi(idx)					   \
-	platform_device_register_resndata(&platform_bus, "rspi-rz", idx,   \
-					rspi##idx##_resources,		   \
-					ARRAY_SIZE(rspi##idx##_resources), \
-					&rspi_pdata, sizeof(rspi_pdata))
-
-
-static struct spi_board_info rskrza1_spi_devices[] __initdata = {
-#if defined(RSPI_TESTING)
-	{
-		/* spidev */
-		.modalias		= "spidev",
-		.max_speed_hz           = 5000000,
-		.bus_num                = 4,
-		.chip_select            = 0,
-		.mode			= SPI_MODE_3,
-	},
-#endif
-	{
-		/* SPI Flash0 */
-		.modalias = "m25p80",
-		.bus_num = 5,
-		.chip_select = 0,
-		.platform_data = &spibsc0_flash_pdata,
-	},
-	{
-		/* SPI Flash1 */
-		.modalias = "m25p80",
-		.bus_num = 6,
-		.chip_select = 0,
-		.platform_data = &spibsc1_flash_pdata,
-	},
-};
-
-/* spibsc0 */
-static const struct sh_spibsc_info spibsc0_pdata = {
-	.bus_num	= 5,
-};
-
-static const struct resource spibsc0_resources[] __initconst = {
-	DEFINE_RES_MEM(0x3fefa000, 0x100),
-};
-
-static const struct platform_device_info spibsc0_info __initconst = {
-	.name		= "spibsc",
-	.id		= 0,
-	.data 		= &spibsc0_pdata,
-	.size_data	= sizeof(spibsc0_pdata),
-	.num_res	= ARRAY_SIZE(spibsc0_resources),
-	.res		= spibsc0_resources,
-};
-
-/* spibsc1 */
-static const struct sh_spibsc_info spibsc1_pdata = {
-	.bus_num	= 6,
-};
-
-static const struct resource spibsc1_resources[] __initconst = {
-	DEFINE_RES_MEM(0x3fefb000, 0x100),
-};
-
-static const struct platform_device_info spibsc1_info __initconst = {
-	.name		= "spibsc",
-	.id		= 1,
-	.data 		= &spibsc1_pdata,
-	.size_data	= sizeof(spibsc1_pdata),
-	.num_res	= ARRAY_SIZE(spibsc1_resources),
-	.res		= spibsc1_resources,
-};
-
-/* ADC */
+/* ==========================================================
+ *		ADC Section
+ *
+ * This is just a driver example for PWM Pin (Pin TIOC4A only)
+ * RSKRZA1 does not have TIOC4A attached to anything.
+ * This PWM driver was intended to be used as a variable LCD
+ * backlight driver. It was devleoped on a different RZ/A1 board.
+ * ==========================================================*/
 static const struct resource adc0_resources[] __initconst = {
 	DEFINE_RES_MEM(0xe8005800, 0x100),
 	DEFINE_RES_MEM(0xfcff0280, 0x6),
@@ -933,7 +1132,11 @@ static const struct platform_device_info adc0_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
-/* MMCIF */
+/* ==========================================================
+ *		MMC Section
+ *
+ * Same for MMC Card or eMMC chip
+ * ==========================================================*/
 static const struct resource sh_mmcif_resources[] __initconst = {
 	DEFINE_RES_MEM_NAMED(0xe804c800, 0x100, "MMCIF"),
 	DEFINE_RES_IRQ(gic_iid(300)),
@@ -958,6 +1161,11 @@ static const struct platform_device_info mmc_info __initconst = {
 	.size_data	= sizeof(sh_mmcif_pdata),
 };
 
+/* ==========================================================
+ *		SD Card Section
+ *
+ * SD Host Interface
+ * ==========================================================*/
 /* SDHI0 */
 static struct sh_mobile_sdhi_info sdhi0_pdata = {
 	.dma_slave_tx	= RZA1DMA_SLAVE_SDHI0_TX,
@@ -1010,7 +1218,9 @@ static const struct platform_device_info sdhi1_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
-/* USB Host */
+/* ==========================================================
+ *		USB Host Section
+ * ==========================================================*/
 static const struct r8a66597_platdata r8a66597_pdata __initconst = {
 	.endian = 0,
 	.on_chip = 1,
@@ -1045,7 +1255,9 @@ static const struct platform_device_info r8a66597_usb_host1_info __initconst = {
 	.num_res	= ARRAY_SIZE(r8a66597_usb_host1_resources),
 };
 
-/* USB Gadget */
+/* ==========================================================
+ *		USB Device (Gadget) Section
+ * ==========================================================*/
 static const struct r8a66597_platdata r8a66597_usb_gadget0_pdata __initconst = {
 	.endian = 0,
 	.on_chip = 1,
@@ -1086,6 +1298,9 @@ static const struct platform_device_info r8a66597_usb_gadget1_info __initconst =
 	.num_res	= ARRAY_SIZE(r8a66597_usb_gadget1_resources),
 };
 
+/* ==========================================================
+ *		CAN Bus Section
+ * ==========================================================*/
 #ifdef CONFIG_CAN_RZA1
 static struct resource rz_can_resources[] = {
 	[0] = {
@@ -1130,67 +1345,9 @@ static struct platform_device_info rz_can_device = {
 };
 #endif /* CONFIG_CAN_RZA1 */
 
-/* Write to I2C device */
-/* stolen from board-sx1.c */
-int rza1_i2c_write_byte(u8 ch, u8 devaddr, u8 regoffset, u8 value)
-{
-	struct i2c_adapter *adap;
-	int err;
-	struct i2c_msg msg[1];
-	unsigned char data[2];
-
-	adap = i2c_get_adapter(ch);
-	if (!adap)
-		return -ENODEV;
-	msg->addr = devaddr;	/* I2C address of chip */
-	msg->flags = 0;
-	msg->len = 2;
-	msg->buf = data;
-	data[0] = regoffset;	/* register num */
-	data[1] = value;		/* register data */
-	err = i2c_transfer(adap, msg, 1);
-	i2c_put_adapter(adap);
-	if (err >= 0)
-		return 0;
-	return err;
-}
-
-/* Read from I2C device */
-/* stolen from board-sx1.c */
-int rza1_i2c_read_byte(u8 ch, u8 devaddr, u8 regoffset, u8 *value)
-{
-	struct i2c_adapter *adap;
-	int err;
-	struct i2c_msg msg[1];
-	unsigned char data[2];
-
-	adap = i2c_get_adapter(ch);
-	if (!adap)
-		return -ENODEV;
-
-	msg->addr = devaddr;	/* I2C address of chip */
-	msg->flags = 0;
-	msg->len = 1;
-	msg->buf = data;
-	data[0] = regoffset;	/* register num */
-	err = i2c_transfer(adap, msg, 1);
-	if (err < 0)
-		return err;
-
-	msg->addr = devaddr;	/* I2C address */
-	msg->flags = I2C_M_RD;
-	msg->len = 1;
-	msg->buf = data;
-	err = i2c_transfer(adap, msg, 1);
-	*value = data[0];
-	i2c_put_adapter(adap);
-
-	if (err >= 0)
-		return 0;
-	return err;
-}
-
-/* Audio */
+/* ==========================================================
+ *		Audio Section
+ * ==========================================================*/
 static const struct platform_device_info alsa_soc_info = {
 	.name		= "rskrza1_alsa_soc_platform",
 	.id		= 0,
@@ -1286,6 +1443,127 @@ static const struct platform_device_info scux_info __initconst = {
 	.res		= scux_resources,
 };
 
+/* ==========================================================
+ *		OV7670 Section
+ *
+ * OV7670 Camera Example
+ * ==========================================================*/
+/* BOARD: This was only for example. If you are not using a
+	  OV7670, you can remove this seciton */
+static struct ov7670_config ov7670_config = {
+	.min_width =		320,	/* Filter out smaller sizes */
+	.min_height =		160,	/* Filter out smaller sizes */
+	.clock_speed =		0,	/* External clock speed (MHz) */
+	.use_smbus =		0,	/* Use smbus I/O instead of I2C */
+	.pll_bypass =		0,	/* Choose whether to bypass the PLL */
+	.pclk_hb_disable =	0,	/* Disable toggling pixclk during horizontal blanking */
+};
+
+static struct i2c_board_info ceu_camera = {
+	I2C_BOARD_INFO("ov7670", 0x21),
+};
+
+static struct soc_camera_link ceu_iclink = {
+	.bus_id = 0,
+	.board_info = &ceu_camera,
+	.i2c_adapter_id = 0,
+	.priv = &ov7670_config,
+};
+
+static const struct platform_device_info ceu_camera_info __initconst = {
+	.name = "soc-camera-pdrv",
+	.id = 0,
+	.data = &ceu_iclink,
+	.size_data = sizeof(ceu_iclink),
+};
+
+/* ==========================================================
+ *		CEU Section
+ *
+ * Camera Engine Unit
+ * ==========================================================*/
+static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
+	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
+	.max_width = 1280,
+	.max_height = 768,
+};
+
+static struct resource ceu_resources[] = {
+	[0] = {
+		.name	= "CEU",
+		.start	= 0xE8210000,
+		.end	= 0xE821000f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = gic_iid(364),
+		.flags  = IORESOURCE_IRQ,
+	},
+#if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
+	/* CEU Requires dedicated memory when in XIP mode, as there's not enough contiguous
+	 * memory for the buffers. You must also specify mem=8M on the kernel command line */
+	[2] = {
+		.name	= "CEU Buffer",
+		.start	= 0x20800000,
+		.end	= 0x20A00000,
+		.flags	= IORESOURCE_MEM,
+	},
+#endif
+};
+
+static const struct platform_device_info ceu_info __initconst = {
+	.name		= "sh_mobile_ceu",
+	.id		= 0,
+	.res		= ceu_resources,
+	.num_res	= ARRAY_SIZE(ceu_resources),
+	.data		= &sh_mobile_ceu_info,
+	.size_data	= sizeof(sh_mobile_ceu_info),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+#ifdef CONFIG_VIDEO_SH_MOBILE_CEU
+static struct pfc_pinmux_assign ceu_common[] = {
+	{ P11_11, ALT1, },	/* VIO_D23 */
+	{ P11_10, ALT1, },	/* VIO_D22 */
+	{ P11_9,  ALT1, },	/* VIO_D21 */
+	{ P11_8,  ALT1, },	/* VIO_D20 */
+	{ P11_7,  ALT1, },	/* VIO_D19 */
+	{ P11_6,  ALT1, },	/* VIO_D18 */
+	{ P11_5,  ALT1, },	/* VIO_D17 */
+	{ P11_4,  ALT1, },	/* VIO_D16 */
+	{ P11_3,  ALT6, },	/* VIO_D15 */
+	{ P11_2,  ALT6, },	/* VIO_D14 */
+	{ P11_1,  ALT6, },	/* VIO_D13 */
+	{ P11_0,  ALT6, },	/* VIO_D12 */
+	{ P10_15, ALT6, },	/* VIO_D11 */
+	{ P10_14, ALT6, },	/* VIO_D10 */
+	{ P10_13, ALT6, },	/* VIO_D9 */
+	{ P10_12, ALT6, },	/* VIO_D8 */
+	{ P10_11, ALT6, },	/* VIO_D7 */
+	{ P10_10, ALT6, },	/* VIO_D6 */
+	{ P10_9,  ALT6, },	/* VIO_D5 */
+	{ P10_8,  ALT6, },	/* VIO_D4 */
+	{ P10_7,  ALT6, },	/* VIO_D3 */
+	{ P10_6,  ALT6, },	/* VIO_D2 */
+	{ P10_5,  ALT6, },	/* VIO_D1 */
+	{ P10_4,  ALT6, },	/* VIO_D0 */
+	{ P10_3,  ALT6, },	/* VIO_DFLD */
+	{ P10_2,  ALT6, },	/* VIO_DHD */
+	{ P10_1,  ALT6, },	/* VIO_DVD */
+	{ P10_0,  ALT6, },	/* VIO_CLK */
+};
+
+static void ceu_pinmux(void)
+{
+	size_t n;
+
+	for (n = 0; n < ARRAY_SIZE(ceu_common); n++)
+		r7s72100_pfc_pin_assign(ceu_common[n].port, ceu_common[n].mode, DIIO_PBDC_EN);
+}
+#endif
+
+
+#if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
 /* By default, the Linux ARM code will pre-allocated IRQ descriptors
    based on the size (HW) of the GIC. For this device, that means
    576 possible interrutps sources. This eats up a lot of RAM at
@@ -1384,147 +1662,68 @@ static void remove_irqs(void)
 			irq_free_descs(i, 1);		/* un-used irq */
 	}
 }
+#endif /* XIP_KERNEL_WITHOUT_EXTERNAL_RAM */
 
-/* SCIF */
-#define R7S72100_SCIF(index, baseaddr, irq)				\
-static const struct plat_sci_port scif##index##_platform_data = {	\
-	.type		= PORT_SCIF,					\
-	.regtype	= SCIx_SH2_SCIF_FIFODATA_REGTYPE,		\
-	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,		\
-	.scscr		= SCSCR_RIE | SCSCR_TIE | SCSCR_RE | SCSCR_TE |	\
-			  SCSCR_REIE,					\
-};									\
-									\
-static struct resource scif##index##_resources[] = {			\
-	DEFINE_RES_MEM(baseaddr, 0x100),				\
-	DEFINE_RES_IRQ(irq + 1),					\
-	DEFINE_RES_IRQ(irq + 2),					\
-	DEFINE_RES_IRQ(irq + 3),					\
-	DEFINE_RES_IRQ(irq),						\
-}									\
-
-//R7S72100_SCIF(0, 0xe8007000, gic_iid(221));	/* Not used */
-//R7S72100_SCIF(1, 0xe8007800, gic_iid(225));	/* Not used */
-R7S72100_SCIF(2, 0xe8008000, gic_iid(229));
-//R7S72100_SCIF(3, 0xe8008800, gic_iid(233));	/* Not used */
-//R7S72100_SCIF(4, 0xe8009000, gic_iid(237));	/* Not used */
-//R7S72100_SCIF(5, 0xe8009800, gic_iid(241));	/* Not used */
-//R7S72100_SCIF(6, 0xe800a000, gic_iid(245));	/* Not used */
-//R7S72100_SCIF(7, 0xe800a800, gic_iid(249));	/* Not used */
-
-#define r7s72100_register_scif(index)					       \
-	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
-					  scif##index##_resources,	       \
-					  ARRAY_SIZE(scif##index##_resources), \
-					  &scif##index##_platform_data,	       \
-					  sizeof(scif##index##_platform_data))
-
-/* OV7670 */
-static struct ov7670_config ov7670_config = {
-	.min_width =		320,	/* Filter out smaller sizes */
-	.min_height =		160,	/* Filter out smaller sizes */
-	.clock_speed =		0,	/* External clock speed (MHz) */
-	.use_smbus =		0,	/* Use smbus I/O instead of I2C */
-	.pll_bypass =		0,	/* Choose whether to bypass the PLL */
-	.pclk_hb_disable =	0,	/* Disable toggling pixclk during horizontal blanking */
-};
-
-static struct i2c_board_info ceu_camera = {
-	I2C_BOARD_INFO("ov7670", 0x21),
-};
-
-static struct soc_camera_link ceu_iclink = {
-	.bus_id = 0,
-	.board_info = &ceu_camera,
-	.i2c_adapter_id = 0,
-	.priv = &ov7670_config,
-};
-
-static const struct platform_device_info ceu_camera_info __initconst = {
-	.name = "soc-camera-pdrv",
-	.id = 0,
-	.data = &ceu_iclink,
-	.size_data = sizeof(ceu_iclink),
-};
-
-/* CEU */
-static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
-	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
-	.max_width = 1280,
-	.max_height = 768,
-};
-
-static struct resource ceu_resources[] = {
-	[0] = {
-		.name	= "CEU",
-		.start	= 0xE8210000,
-		.end	= 0xE821000f,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start  = gic_iid(364),
-		.flags  = IORESOURCE_IRQ,
-	},
-#if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
-	/* CEU Requires dedicated memory when in XIP mode, as there's not enough contiguous
-	 * memory for the buffers. You must also specify mem=8M on the kernel command line */
-	[2] = {
-		.name	= "CEU Buffer",
-		.start	= 0x20800000,
-		.end	= 0x20A00000,
-		.flags	= IORESOURCE_MEM,
-	},
-#endif
-};
-
-static const struct platform_device_info ceu_info __initconst = {
-	.name		= "sh_mobile_ceu",
-	.id		= 0,
-	.res		= ceu_resources,
-	.num_res	= ARRAY_SIZE(ceu_resources),
-	.data		= &sh_mobile_ceu_info,
-	.size_data	= sizeof(sh_mobile_ceu_info),
-	.dma_mask	= DMA_BIT_MASK(32),
-};
-
-static struct pfc_pinmux_assign ceu_common[] = {
-	{ P11_11, ALT1, },	/* VIO_D23 */
-	{ P11_10, ALT1, },	/* VIO_D22 */
-	{ P11_9,  ALT1, },	/* VIO_D21 */
-	{ P11_8,  ALT1, },	/* VIO_D20 */
-	{ P11_7,  ALT1, },	/* VIO_D19 */
-	{ P11_6,  ALT1, },	/* VIO_D18 */
-	{ P11_5,  ALT1, },	/* VIO_D17 */
-	{ P11_4,  ALT1, },	/* VIO_D16 */
-	{ P11_3,  ALT6, },	/* VIO_D15 */
-	{ P11_2,  ALT6, },	/* VIO_D14 */
-	{ P11_1,  ALT6, },	/* VIO_D13 */
-	{ P11_0,  ALT6, },	/* VIO_D12 */
-	{ P10_15, ALT6, },	/* VIO_D11 */
-	{ P10_14, ALT6, },	/* VIO_D10 */
-	{ P10_13, ALT6, },	/* VIO_D9 */
-	{ P10_12, ALT6, },	/* VIO_D8 */
-	{ P10_11, ALT6, },	/* VIO_D7 */
-	{ P10_10, ALT6, },	/* VIO_D6 */
-	{ P10_9,  ALT6, },	/* VIO_D5 */
-	{ P10_8,  ALT6, },	/* VIO_D4 */
-	{ P10_7,  ALT6, },	/* VIO_D3 */
-	{ P10_6,  ALT6, },	/* VIO_D2 */
-	{ P10_5,  ALT6, },	/* VIO_D1 */
-	{ P10_4,  ALT6, },	/* VIO_D0 */
-	{ P10_3,  ALT6, },	/* VIO_DFLD */
-	{ P10_2,  ALT6, },	/* VIO_DHD */
-	{ P10_1,  ALT6, },	/* VIO_DVD */
-	{ P10_0,  ALT6, },	/* VIO_CLK */
-};
-
-static void ceu_pinmux(void)
+/* Write to I2C device */
+/* Based off of board-sx1.c */
+int rza1_i2c_write_byte(u8 ch, u8 devaddr, u8 regoffset, u8 value)
 {
-	size_t n;
+	struct i2c_adapter *adap;
+	int err;
+	struct i2c_msg msg[1];
+	unsigned char data[2];
 
-	for (n = 0; n < ARRAY_SIZE(ceu_common); n++)
-		r7s72100_pfc_pin_assign(ceu_common[n].port, ceu_common[n].mode, DIIO_PBDC_EN);
+	adap = i2c_get_adapter(ch);
+	if (!adap)
+		return -ENODEV;
+	msg->addr = devaddr;	/* I2C address of chip */
+	msg->flags = 0;
+	msg->len = 2;
+	msg->buf = data;
+	data[0] = regoffset;	/* register num */
+	data[1] = value;		/* register data */
+	err = i2c_transfer(adap, msg, 1);
+	i2c_put_adapter(adap);
+	if (err >= 0)
+		return 0;
+	return err;
 }
+
+/* Read from I2C device */
+/* Based off of board-sx1.c */
+int rza1_i2c_read_byte(u8 ch, u8 devaddr, u8 regoffset, u8 *value)
+{
+	struct i2c_adapter *adap;
+	int err;
+	struct i2c_msg msg[1];
+	unsigned char data[2];
+
+	adap = i2c_get_adapter(ch);
+	if (!adap)
+		return -ENODEV;
+
+	msg->addr = devaddr;	/* I2C address of chip */
+	msg->flags = 0;
+	msg->len = 1;
+	msg->buf = data;
+	data[0] = regoffset;	/* register num */
+	err = i2c_transfer(adap, msg, 1);
+	if (err < 0)
+		return err;
+
+	msg->addr = devaddr;	/* I2C address */
+	msg->flags = I2C_M_RD;
+	msg->len = 1;
+	msg->buf = data;
+	err = i2c_transfer(adap, msg, 1);
+	*value = data[0];
+	i2c_put_adapter(adap);
+
+	if (err >= 0)
+		return 0;
+	return err;
+}
+
 
 static void __init rskrza1_add_standard_devices(void)
 {
@@ -1545,6 +1744,8 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_clock_init();
 	r7s72100_pinmux_setup();
 	r7s72100_add_dt_devices();
+
+	/* ------------ Pin setup section ---------------*/
 
 	r7s72100_pfc_pin_assign(P1_15, ALT1, DIIO_PBDC_EN);	/* AD7 */
 	r7s72100_pfc_pin_assign(P1_0, ALT1, DIIO_PBDC_EN);	/* I2C SCL0 */
@@ -1577,7 +1778,14 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P3_14, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT3*/
 	r7s72100_pfc_pin_assign(P3_15, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT2 */
 #endif
-	gpio_irq_init();
+
+	/* Set up IRQ for touchscreen */
+	{
+		/* Set for low edge trigger */
+		void __iomem *irc1 = IOMEM(0xfcfef802);
+		__raw_writew((__raw_readw(irc1) & ~(0x3 << 2)), irc1);
+		r7s72100_pfc_pin_assign(P4_9, ALT8, DIIO_PBDC_DIS);  /* IRQ1 */
+	}
 
 #ifdef CONFIG_CAN_RZA1
 	/* Ch 1 (conflicts with Ethernet, requires resistor change) */
@@ -1591,85 +1799,94 @@ static void __init rskrza1_add_standard_devices(void)
 	platform_device_register_full(&rz_can_device);
 #endif
 
+	/* ------------ Register Device and Drivers ---------------*/
+
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
 
 #if !(XIP_KERNEL_WITHOUT_EXTERNAL_RAM)	/* Uses too much internal RAM */
+#ifdef CONFIG_UOI
 	platform_device_register_full(&jcu_info);
-#endif
-	platform_device_register_full(&ostm_info);
-	platform_device_register_full(&dma_info);
-	platform_device_register_full(&alsa_soc_info);
-	platform_device_register_full(&scux_info);
-	platform_device_register_full(&ether_info);
+#endif /* CONFIG_UIO */
+#endif /* XIP_KERNEL_WITHOUT_EXTERNAL_RAM */
 
-	platform_device_register_full(&riic0_info);	/* Touchscreen and camera */
-//	platform_device_register_full(&riic1_info);	/* Not used */
-//	platform_device_register_full(&riic2_info);	/* Not used */
-	platform_device_register_full(&riic3_info);	/* Port Expander, EEPROM (MAC Addr), Audio Codec */
-	platform_device_register_full(&rtc_info);
+	platform_device_register_full(&ostm_info);	/* High precision OS Timer */
+	platform_device_register_full(&dma_info);	/* DMA */
+	platform_device_register_full(&alsa_soc_info);	/* Sound */
+	platform_device_register_full(&scux_info);	/* Sound */
+	platform_device_register_full(&ether_info);	/* Ethernet */
+
+	platform_device_register_full(&riic0_info);	/* I2C0: Touchscreen and camera */
+//	platform_device_register_full(&riic1_info);	/* I2C1: Not used */
+//	platform_device_register_full(&riic2_info);	/* I2C2: Not used */
+	platform_device_register_full(&riic3_info);	/* I2C3: Port Expander, EEPROM (MAC Addr), Audio Codec */
+	platform_device_register_full(&rtc_info);	/* RTC */
 
 #ifndef CONFIG_VIDEO_SH_MOBILE_CEU
-	platform_device_register_full(&vdc5fb_info);
+	platform_device_register_full(&vdc5fb0_info);	/* VDC5 ch1 */
+	//platform_device_register_full(&simplefb_info);	/* Simplefb (FLOATING LAYER) */
 #else
-	platform_device_register_full(&ceu_info);
-	platform_device_register_full(&ceu_camera_info);
+	platform_device_register_full(&ceu_info);		/* CEU */
+	platform_device_register_full(&ceu_camera_info);	/* OV7670 */
 #endif
 
 #if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SPI_SH_SPIBSC)
 	/* Need to disable both spibsc channels if using memory mapped QSPI */
-	platform_device_register_full(&spibsc0_info);
-	platform_device_register_full(&spibsc1_info);
+	platform_device_register_full(&spibsc0_info);		/* QSPI driver (non-XIP) */
+	//platform_device_register_full(&spibsc1_info);
 #else
-	platform_device_register_full(&qspi_flash_info);
+	platform_device_register_full(&qspi_flash_info);	/* Memory Mapped XIP QSPI */
 #endif
 
-	platform_device_register_full(&nor_flash_info);
+	platform_device_register_full(&nor_flash_info);		/* Parallel NOR Flash */
+
 #if 0 /* For refernce only */
 	platform_device_register_full(&pwm0_info);
 	platform_device_register_full(&pwm_backlight_info);
 	pwm_add_table(pwm_lookup, ARRAY_SIZE(pwm_lookup));
 #endif
-	platform_device_register_full(&adc0_info);
-//	platform_device_register_full(&sdhi0_info);	/* not populated on board */
+
+	platform_device_register_full(&adc0_info);	/* ADC */
+
+//	platform_device_register_full(&sdhi0_info);	/* SDHI ch0 */ /* not populated on board */
 
 #ifndef CONFIG_MMC_SDHI
-	platform_device_register_full(&mmc_info);
+	platform_device_register_full(&mmc_info);	/* MMC */
 #else
-	platform_device_register_full(&sdhi1_info);
+	platform_device_register_full(&sdhi1_info);	/* SDHI ch1 */
 #endif
 
 	if (usbgs == 0) {
-		platform_device_register_full(&r8a66597_usb_gadget0_info);
-		platform_device_register_full(&r8a66597_usb_host1_info);
+		platform_device_register_full(&r8a66597_usb_gadget0_info);	/* USB ch0 as Device */
+		platform_device_register_full(&r8a66597_usb_host1_info);	/* USB ch1 as Host */
 	} else if (usbgs == 1) {
-		platform_device_register_full(&r8a66597_usb_host0_info);
-		platform_device_register_full(&r8a66597_usb_gadget1_info);
+		platform_device_register_full(&r8a66597_usb_host0_info);	/* USB ch0 as Host */
+		platform_device_register_full(&r8a66597_usb_gadget1_info);	/* USB ch1 as Device */
 	} else {
-		platform_device_register_full(&r8a66597_usb_host0_info);
-		platform_device_register_full(&r8a66597_usb_host1_info);
+		platform_device_register_full(&r8a66597_usb_host0_info);	/* USB ch0 as Host */
+		platform_device_register_full(&r8a66597_usb_host1_info);	/* USB ch1 as Host */
 	}
 
-//	r7s72100_register_rspi(0);	/* Not used */
-//	r7s72100_register_rspi(1);	/* Not used */
-//	r7s72100_register_rspi(2);	/* Not used */
-//	r7s72100_register_rspi(3);	/* Not used */
+//	r7s72100_register_rspi(0);	/* RSPI ch0 */ /* Not used */
+//	r7s72100_register_rspi(1);	/* RSPI ch1 */ /* Not used */
+//	r7s72100_register_rspi(2);	/* RSPI ch2 */ /* Not used */
+//	r7s72100_register_rspi(3);	/* RSPI ch3 */ /* Not used */
 #if defined(RSPI_TESTING)
-	r7s72100_register_rspi(4);	/* Not used */
+	r7s72100_register_rspi(4);	/* RSPI ch4 */ /* Not used */
 #endif
 
 	/* Register SPI device information */
 	spi_register_board_info(rskrza1_spi_devices,
 				ARRAY_SIZE(rskrza1_spi_devices));
 
-//	r7s72100_register_scif(0);	/* Not used */
-//	r7s72100_register_scif(1);	/* Not used */
-	r7s72100_register_scif(2);
-//	r7s72100_register_scif(3);	/* Not used */
-//	r7s72100_register_scif(4);	/* Not used */
-//	r7s72100_register_scif(5);	/* Not used */
-//	r7s72100_register_scif(6);	/* Not used */
-//	r7s72100_register_scif(7);	/* Not used */
+//	r7s72100_register_scif(0);	/* SCIF ch0 */ /* Not used */
+//	r7s72100_register_scif(1);	/* SCIF ch1 */ /* Not used */
+	r7s72100_register_scif(2);	/* SCIF ch2 */
+//	r7s72100_register_scif(3);	/* SCIF ch3 */ /* Not used */
+//	r7s72100_register_scif(4);	/* SCIF ch4 */ /* Not used */
+//	r7s72100_register_scif(5);	/* SCIF ch5 */ /* Not used */
+//	r7s72100_register_scif(6);	/* SCIF ch6 */ /* Not used */
+//	r7s72100_register_scif(7);	/* SCIF ch7 */ /* Not used */
 
 }
 
@@ -1748,7 +1965,7 @@ static void __init rskrza1_init_late(void)
 	}
 #endif
 
-	/* Start heardbeat kernel thread */
+	/* Start heartbeat kernel thread */
 	kthread_run(heartbeat, NULL,"heartbeat");
 }
 
