@@ -526,7 +526,7 @@ VDC5_1_BPP, VDC5_1_FBSIZE, VDC5_1_FB_ADDR:
 #define VDC5_1_FB_ADDR (0x60200000) /* PAGE 2 (2MB) */
 static const struct resource vdc5fb1_resources[VDC5FB_NUM_RES] __initconst = {
 	[0] = DEFINE_RES_MEM_NAMED(0xfcff8000, 0x00002000, "vdc5fb.1: reg"),
-	[1] = DEFINE_RES_MEM_NAMED(VDC5_1_FB_ADDR, VDC5_1_FBSIZE, "vdc5f1.0: fb"),
+	[1] = DEFINE_RES_MEM_NAMED(VDC5_1_FB_ADDR, VDC5_1_FBSIZE, "vdc5fb.1: fb"),
 	[2] = DEFINE_RES_NAMED(99, 23, "vdc5fb.1: irq", IORESOURCE_IRQ),
 };
 
