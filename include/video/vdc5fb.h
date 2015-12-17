@@ -40,14 +40,6 @@
 #define	VDC5FB_IRQ_BASE(x)	(75 + (24 * (x)))
 #define	VDC5FB_IRQ_SIZE		23
 
-/* clock_source */
-enum {
-	ICKSEL_INPSEL = 0,
-	ICKSEL_EXTCLK0,
-	ICKSEL_EXTCLK1,
-	ICKSEL_P1CLK,
-};
-
 /* tcon_sel */
 enum {				/* index */
 	LCD_TCON0 = 0,
@@ -103,11 +95,23 @@ struct vdc5fb_layer {
 	u32 blend;	/* blend with lower layer or not */
 };
 
-/*! The clock input to vdc5 */
+/* Choices for ".panel_icksel" (when .use_lvds=0)
+  When .use_lvds=0, drivers sets SYSCNT_PANEL_CLK:PANEL_OCKSEL[1:0] = 0 (fixed)
+  See "38.1.3 Panel Clock Control" in Hardware Manual for more details */
 enum {
-	OCKSEL_ICK = 0,
-	OCKSEL_PLL,
-	OCKSEL_PLL_DIV7,
+	ICKSEL_INPSEL = 0,	/* Video image clock (VIDEO_X1 or DV_CLK based on INP_SEL=0,1) */
+	ICKSEL_EXTCLK0,		/* External clock (LCD0_EXTCLK) */
+	ICKSEL_EXTCLK1,		/* External clock (LCD1_EXTCLK) */
+	ICKSEL_P1CLK,		/* Peripheral clock 1 */
+};
+
+/* Choices for ".panel_icksel" (when .use_lvds=1)
+  When .use_lvds=0, drivers sets SYSCNT_PANEL_CLK:PANEL_OCKSEL[1:0] = 0 (fixed)
+  See "38.1.3 Panel Clock Control" in Hardware Manual for more details */
+enum {
+	OCKSEL_ICK = 0,		/* Selected by PANEL_CLK[1:0] */
+	OCKSEL_PLL,		/* LVDS PLL clock */
+	OCKSEL_PLL_DIV7,	/* LVDS PLL clock divided by 7 */
 };
 
 /*! The clock input to frequency divider 1 */
