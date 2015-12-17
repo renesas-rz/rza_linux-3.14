@@ -500,6 +500,127 @@ static const struct platform_device_info simplefb_info __initconst = {
 };
 #endif /* FLOATING LAYER SAMPLE */
 
+/* Example of using LVDS on VDC5 ch 1 */
+//#define USE_LVDS
+#ifdef USE_LVDS
+/* ==========================================================
+ *			LCD 1 Video Section
+ * Defines VDC5 ch1 LCD controller (RZ/A1M and RZ/A1H only)
+ * Board Specific Portions:
+ *	- Assumes LVDS
+ * 	- main clock speed
+ * 	- Pin mux setup for Parallel LCD
+ *	- LCD panel description
+ *	- Frame buffer layers
+ * ==========================================================*/
+
+/* LCD 1 Frame buffer Declaration */
+/* BOARD: Define your [LCD1 LVDS] frame buffer location and size.
+VDC5_1_BPP, VDC5_1_FBSIZE, VDC5_1_FB_ADDR:
+	See VDC5_1_XXX for more info
+*/
+/* NOTE: If you want to use VDC5 ch0 and ch1 at the same time, you
+   need to put their frame buffers in different RAM Pages */
+#define VDC5_1_BPP 16
+#define VDC5_1_FBSIZE (1280*800*VDC5_1_BPP/8)
+#define VDC5_1_FB_ADDR (0x60200000) /* PAGE 2 (2MB) */
+static const struct resource vdc5fb1_resources[VDC5FB_NUM_RES] __initconst = {
+	[0] = DEFINE_RES_MEM_NAMED(0xfcff8000, 0x00002000, "vdc5fb.1: reg"),
+	[1] = DEFINE_RES_MEM_NAMED(VDC5_1_FB_ADDR, VDC5_1_FBSIZE, "vdc5f1.0: fb"),
+	[2] = DEFINE_RES_NAMED(99, 23, "vdc5fb.1: irq", IORESOURCE_IRQ),
+};
+
+static int vdc5fb_pinmux_lvds(struct platform_device *pdev)
+{
+	/* When using the LVDS pins, PIPCn.PIPCnm bits should be Set to 0
+	   and the port direction should be set as input. See Table 54.7 */
+	r7s72100_pfc_pin_assign(P5_0, ALT1, DIR_IN); /* TXCLKOUTP */
+	r7s72100_pfc_pin_assign(P5_1, ALT1, DIR_IN); /* TXCLKOUTM */
+	r7s72100_pfc_pin_assign(P5_2, ALT1, DIR_IN); /* TXOUT2P */
+	r7s72100_pfc_pin_assign(P5_3, ALT1, DIR_IN); /* TXOUT2M */
+	r7s72100_pfc_pin_assign(P5_4, ALT1, DIR_IN); /* TXOUT1P */
+	r7s72100_pfc_pin_assign(P5_5, ALT1, DIR_IN); /* TXOUT1M */
+	r7s72100_pfc_pin_assign(P5_6, ALT1, DIR_IN); /* TXOUT0P */
+	r7s72100_pfc_pin_assign(P5_7, ALT1, DIR_IN); /* TXOUT0M */
+
+	return 0;
+}
+
+static int vdc5fb_1_pinmux(struct platform_device *pdev)
+{
+	vdc5fb_pinmux_lvds( pdev );
+	return 0;
+}
+
+/* LVDS Panel: HSD070PWW1 -B01 | 1280x800 (WXVGA), 7", LVDS, 16bpp */
+
+static struct fb_videomode videomode_hsd070pww1 = {
+	.name		= "HSD070PWW1",
+	.refresh	= 60,	/* not fixed */
+	.xres		= 1280,
+	.yres		= 800,
+	.pixclock	= PIXCLOCK(P1CLK, 1),  /* 66MHz min:64.3, typ:71.1MHz, max: 82 */
+	.left_margin	= 16,	/* horizontal back porch */
+	.right_margin	= 16,	/* horizontal front porch */
+	.upper_margin	= 24,	/* vertical back porch */
+	.lower_margin	= 1,	/* vertical front porch */
+	.hsync_len	= 136,	/* Horizontal Blanking Time */
+	.vsync_len	= 3,	/* Vertical Blanking Time */
+	.sync		= FB_SYNC_HOR_HIGH_ACT, /*Polarity Inversion Control of STH Signal*/
+	.vmode		= 0,
+	.flag		= 0,
+};
+
+static const struct vdc5fb_pdata vdc5fb_hsd070pww1_pdata = {
+	.name			= "hsd070pww1",
+	.videomode		= &videomode_hsd070pww1,
+	.panel_icksel		= OCKSEL_PLL_DIV7,	/* see include/video/vdc5fb.h */
+	.bpp			= VDC5_1_BPP,
+	.panel_width		= 0,	/* mm, unused */
+	.panel_height		= 0,	/* mm, unused */
+	.flm_max		= 1,
+	.out_format		= OUT_FORMAT_RGB888,
+	.use_lvds		= 1,
+	.tcon_sel		= {
+		[LCD_TCON0]	= TCON_SEL_UNUSED,	/* VSYNC (for LVDS, VS must be TCON0) */
+		[LCD_TCON1]	= TCON_SEL_UNUSED,	/* (not connected to LVDS circuit) */
+		[LCD_TCON2]	= TCON_SEL_UNUSED,	/* HSYNC (for LVDS, HS must be TCON2) */
+		[LCD_TCON3]	= TCON_SEL_DE,		/* DE (for LVDS, DE must be TCON3) */
+		[LCD_TCON4]	= TCON_SEL_UNUSED,	/* (not connected to LVDS circuit) */
+		[LCD_TCON5]	= TCON_SEL_UNUSED,	/* (not connected to LVDS circuit) */
+		[LCD_TCON6]	= TCON_SEL_UNUSED,	/* (not connected to LVDS circuit) */
+	},
+	.pinmux			= vdc5fb_1_pinmux,
+	.layers			= {
+		/* Graphics 2 - Image Synthesizer */
+		/* Full LCD Panel - will be /dev/fb0 */
+		[2].xres	= 1280,
+		[2].yres	= 800,
+		[2].x_offset	= 0,
+		[2].y_offset	= 0,
+#if VDC5_1_BPP == 16
+		[2].format	= GR_FORMAT(GR_FORMAT_RGB565) | GR_RDSWA(6),
+#else
+		[2].format	= GR_FORMAT(GR_FORMAT_ARGB8888) | GR_RDSWA(4),
+#endif
+		[2].bpp		= VDC5_1_BPP,
+		[2].base	= VDC5_1_FB_ADDR,
+		[2].blend	 = 0,
+	},
+};
+
+static const struct platform_device_info vdc5fb1_info __initconst = {
+	.name		= "vdc5fb",
+	.id		= 1,	/* ch 1 */
+	.res		= vdc5fb1_resources,
+	.num_res	= ARRAY_SIZE(vdc5fb1_resources),
+	.data		= &vdc5fb_hsd070pww1_pdata,
+	.size_data	= sizeof(vdc5fb_hsd070pww1_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),	/* only needed if not hardcoding fb */
+};
+
+#endif /* USE_LVDS */
+
 /* ==========================================================
  *			JCU Section
  * ==========================================================*/
@@ -1828,6 +1949,9 @@ static void __init rskrza1_add_standard_devices(void)
 #else
 	platform_device_register_full(&ceu_info);		/* CEU */
 	platform_device_register_full(&ceu_camera_info);	/* OV7670 */
+#endif
+#ifdef USE_LVDS
+	platform_device_register_full(&vdc5fb1_info);	/* VDC5 ch1 */
 #endif
 
 #if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SPI_SH_SPIBSC)
