@@ -133,7 +133,7 @@ static struct map_desc rza1_io_desc[] __initdata = {
  * - Called early to set up mappings
  * - Call twice during boot (before and after MMU setup)
  */
-void __init rza1_map_io(void)
+void __init r7s72100_map_io(void)
 {
 #ifdef CONFIG_DEBUG_LL
 	/* Note: Becase we defined a .map_io handler, we must manually set our
@@ -2096,9 +2096,15 @@ static void __init rskrza1_init_late(void)
 #define WTCSR 0
 #define WTCNT 2
 #define WRCSR 4
-static void rskrza1_restart(enum reboot_mode mode, const char *cmd)
+static void r7s72100_restart(enum reboot_mode mode, const char *cmd)
 {
 	void *base = ioremap_nocache(0xFCFE0000, 0x10);
+
+	/* If you have board specific stuff to do, you can do it
+	   here before you reboot */
+
+	/* NOTE: A reboot command doesn't 'sync' before this function
+	   is called. See funciotn reboot() in kernel/reboot.c */
 
 	/* Dummy read (must read WRCSR:WOVF at least once before clearing) */
 	*(volatile uint8_t *)(base + WRCSR) = *(uint8_t *)(base + WRCSR);
@@ -2132,6 +2138,6 @@ DT_MACHINE_START(RSKRZA1_DT, "rskrza1")
 	.init_machine	= rskrza1_add_standard_devices,
 	.init_late	= rskrza1_init_late,
 	.dt_compat	= rskrza1_boards_compat_dt,
-	.map_io		= rza1_map_io,
-	.restart	= rskrza1_restart,
+	.map_io		= r7s72100_map_io,
+	.restart	= r7s72100_restart,
 MACHINE_END
