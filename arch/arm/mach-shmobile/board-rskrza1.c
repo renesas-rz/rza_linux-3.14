@@ -65,6 +65,8 @@
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
 #include <linux/can/platform/rza1_can.h>
+#include <linux/clk.h>
+
 
 /* If an XIP kernel has its memory address set to the begining
    of internal RAM, we'll assume that external SDRAM is not
@@ -2014,6 +2016,99 @@ static void __init rskrza1_add_standard_devices(void)
 
 }
 
+//#define STATS_OUT
+#ifdef STATS_OUT
+/* This function is intended to be called periodically in order to
+print out the current CPU Idle time and RAM usage with minimal
+overhead.
+
+On the RZ/A1 RSK, SCIF 1 comes out on header JA6
+	TXD1 = JA6, pin 9
+	RXD1 = JA6, pin 12
+*/
+
+/* You need to fill in how much RAM your system has so we can
+   subtract TOTAL - FREE - USED. */
+#define TOTAL_SYSTEM_RAM 0*1024 /* Total System RAM in KB */
+#if TOTAL_SYSTEM_RAM == 0
+  #error "Please define TOTAL_SYSTEM_RAM first "
+#endif
+
+/* NOTE: You need to remove 'static' from the function
+  get_idle_time() in file fs/proc/stat.c */
+u64 get_idle_time(int cpu);
+
+void print_stats(void)
+{
+	static char text[17] = " idle%,memKB\r\n";
+	static cputime64_t idle, last_idle = -1;
+	static void *scif1_base;
+
+	int ram_used = 3000, cpu_used = 10;
+	int i;
+	struct sysinfo info;
+	struct clk *scif1_clk;
+
+	/* Setup, only once */
+	if( last_idle == -1 ) {
+		/* SCIF 1 pinmux */
+		r7s72100_pfc_pin_assign(P4_12, ALT7, DIIO_PBDC_DIS);	/* SCIF1 TX */
+		r7s72100_pfc_pin_assign(P4_13, ALT7, DIIO_PBDC_DIS);	/* SCIF1 RX */
+
+		/* SCIF 1 clock */
+		scif1_clk = clk_get_sys("sh-sci.1", "sci_fck");
+		clk_enable(scif1_clk);
+
+		/* SCIF1 Registers */
+		/* Map registers so we can get at them */
+		scif1_base = ioremap_nocache(0xE8007800, 0x30);
+		#define SCFTDR_1 *(volatile uint8_t *)(scif1_base + 0x0C)
+		#define SCSCR_1 *(volatile uint16_t *)(scif1_base + 0x08)
+		#define SCBRR_1 *(volatile uint8_t *)(scif1_base + 0x04)
+
+		/* Minimum SCIF setup */
+		SCBRR_1 = 0x11;		// Baud 115200
+		SCSCR_1 = 0x0030;	// Enable TX an RX, but no interrupts
+
+		/* Print out header */
+		i = 0;
+		while(text[i++])
+		{
+			SCFTDR_1 = text[i];
+		}
+
+		//idle = kcpustat_cpu(0).cpustat[CPUTIME_IDLE];
+		idle = get_idle_time(0);
+		last_idle = get_idle_time(0);
+	}
+
+	/* Print out current CPU idle time and RAM usage */
+	si_meminfo(&info);
+
+	/* Idle time */
+	idle = get_idle_time(0);
+	cpu_used = (last_idle - idle)*100;
+	cpu_used = cpu_used / 132;
+	if( cpu_used >= 99)
+		cpu_used = 99;
+	last_idle = idle;
+
+	/* USED_RAM = TOTAL_RAM - FREE_RAM */
+	ram_used = TOTAL_SYSTEM_RAM - (info.freeram << (PAGE_SHIFT - 10));
+
+	sprintf(text,"%03d%%,%04dKB\r\n",cpu_used,ram_used);
+
+	/* We want the string to be less than 16 characters so all fits
+	   in the 16byte SCIF FIFO */
+	i=0;
+	while(text[i++])
+	{
+		SCFTDR_1 = text[i];
+	}
+}
+#endif
+
+
 static int heartbeat(void * data)
 {
 	u8 index = 0;
@@ -2033,6 +2128,12 @@ static int heartbeat(void * data)
 			rza1_i2c_write_byte(3, 0x20, 0x01, value);
 
 		msleep_interruptible(250);
+
+#ifdef STATS_OUT
+		/* Only print stats once per second */
+		if( (index & 0x03) == 0 )
+			print_stats();
+#endif
 	}
 
 	return 0;
