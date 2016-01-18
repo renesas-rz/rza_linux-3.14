@@ -95,9 +95,13 @@ struct vdc5fb_layer {
 	u32 blend;	/* blend with lower layer or not */
 };
 
-/* Choices for ".panel_icksel" (when .use_lvds=0)
-  When .use_lvds=0, drivers sets SYSCNT_PANEL_CLK:PANEL_OCKSEL[1:0] = 0 (fixed)
-  See "38.1.3 Panel Clock Control" in Hardware Manual for more details */
+/* Choices for ".panel_icksel".
+  When .use_lvds=0:
+    This driver only supports ICKSEL_P1CLK because the math to
+    calculate PANEL_DCDR[5:0] assumes a P1 clock rate.
+  When .use_lvds=1
+    This value is not used (PANEL_ICKSEL[1:0] is don't care when using LVDS)
+  See "Panel Clock Control Register (SYSCNT_PANEL_CLK)" for more details */
 enum {
 	ICKSEL_INPSEL = 0,	/* Video image clock (VIDEO_X1 or DV_CLK based on INP_SEL=0,1) */
 	ICKSEL_EXTCLK0,		/* External clock (LCD0_EXTCLK) */
@@ -105,9 +109,10 @@ enum {
 	ICKSEL_P1CLK,		/* Peripheral clock 1 */
 };
 
-/* Choices for ".panel_icksel" (when .use_lvds=1)
-  When .use_lvds=0, drivers sets SYSCNT_PANEL_CLK:PANEL_OCKSEL[1:0] = 0 (fixed)
-  See "38.1.3 Panel Clock Control" in Hardware Manual for more details */
+/* Choices for ".panel_ocksel".
+  When .use_lvds=0, only OCKSEL_ICK should be selected
+  When .use_lvds=1, OCKSEL_PLL or OCKSEL_PLL_DIV7 should be selected
+  See "Panel Clock Control Register (SYSCNT_PANEL_CLK)" for more details */
 enum {
 	OCKSEL_ICK = 0,		/* Selected by PANEL_CLK[1:0] */
 	OCKSEL_PLL,		/* LVDS PLL clock */
@@ -125,6 +130,7 @@ enum {
 	VDC5_LVDS_INCLK_SEL_NUM
 };
 
+/*! The frequency divider 1 (NIDIV) and frequency divider 2 (NODIV) */
 enum {
 	VDC5_LVDS_NDIV_1 = 0,		/*!< Div 1 */
 	VDC5_LVDS_NDIV_2,		/*!< Div 2 */
@@ -146,7 +152,8 @@ struct vdc5fb_pdata {
 	const char *name;
 	struct fb_videomode *videomode;
 	int bpp;		/* should be 16 or 32 */
-	int panel_icksel;	/* should be ICKSEL_P1CLK */
+	int panel_icksel;	/* should be ICKSEL_XXX */
+	int panel_ocksel;	/* should be OCKSEL_XXX */
 	unsigned long panel_width;
 	unsigned long panel_height;
 	unsigned long flm_max;

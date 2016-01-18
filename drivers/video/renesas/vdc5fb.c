@@ -55,7 +55,7 @@ struct vdc5fb_priv {
 	struct fb_videomode *videomode;	/* current */
 	/* clock */
 	struct clk *clk;
-	struct clk *dot_clk;
+	struct clk *p1_clk;
 	struct clk *lvds_clk;
 	/* framebuffers */
 	void __iomem *base;
@@ -206,11 +206,11 @@ static int vdc5fb_init_clocks(struct vdc5fb_priv *priv)
 		return PTR_ERR(priv->clk);
 	}
 
-	priv->dot_clk = clk_get(&pdev->dev, clkname_p1clk);
-	if (IS_ERR(priv->dot_clk)) {
+	priv->p1_clk = clk_get(&pdev->dev, clkname_p1clk);
+	if (IS_ERR(priv->p1_clk)) {
 		dev_err(&pdev->dev, "cannot get clock \"%s\"\n", clkname_p1clk);
 		clk_put(priv->clk);
-		return PTR_ERR(priv->dot_clk);
+		return PTR_ERR(priv->p1_clk);
 	}
 
 	if (pdata->use_lvds) {
@@ -219,7 +219,7 @@ static int vdc5fb_init_clocks(struct vdc5fb_priv *priv)
 			dev_err(&pdev->dev, "cannot get clock \"%s\"\n",
 				clkname_lvds);
 			clk_put(priv->clk);
-			clk_put(priv->dot_clk);
+			clk_put(priv->p1_clk);
 			return PTR_ERR(priv->lvds_clk);
 		}
 	}
@@ -231,8 +231,8 @@ static void vdc5fb_deinit_clocks(struct vdc5fb_priv *priv)
 {
 	if (priv->lvds_clk)
 		clk_put(priv->lvds_clk);
-	if (priv->dot_clk)
-		clk_put(priv->dot_clk);
+	if (priv->p1_clk)
+		clk_put(priv->p1_clk);
 	if (priv->clk)
 		clk_put(priv->clk);
 }
@@ -290,18 +290,25 @@ static int vdc5fb_update_regs(struct vdc5fb_priv *priv,
 static int vdc5fb_set_panel_clock(struct vdc5fb_priv *priv,
 	struct fb_videomode *mode)
 {
+	/* These are the divide by ratios for DCDR[5:0] */
 	static const unsigned char dcdr_list[13] = {
 		1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 16, 24, 32,
 	};
-	uint64_t desired64 = 1000000000000;
+
+	uint64_t desired64 = 1000000000000; /* pixclock is in ps (pico seconds)*/
 	unsigned long desired;
 	unsigned long source;
 	unsigned long used;
 	int n;
 
-	source = clk_get_rate(priv->dot_clk);
+	/* NOTE: This assumes your clock source will be P1 */
+	source = clk_get_rate(priv->p1_clk);
 	BUG_ON(source == 0);
 
+	/* The board file will set fb_videomode.pixclock to what the panel
+	   recomends, but should be a division of P1 clock. Now we need
+	   to find out what divider bits for DCDR need to be (knowing that the 
+	   DCDR has a limited number of valid divider) */
 	(void)do_div(desired64, mode->pixclock);
 	desired = (unsigned long)desired64;
 	for (n = 0; n < ARRAY_SIZE(dcdr_list); n++) {
@@ -322,60 +329,116 @@ static int vdc5fb_set_panel_clock(struct vdc5fb_priv *priv,
 static int vdc5fb_init_lvds(struct vdc5fb_priv *priv)
 {
 	struct vdc5fb_pdata *pdata = priv_to_pdata(priv);
-	uint64_t desired64 = 1000000000000;
+	uint64_t desired64 = 1000000000000; /* pixclock is in ps (pico seconds)*/
 	u32 desired, source, fref, nfd, fvco, i, nod, nod_array[4], fout;
 	u32 tmp;
 
+	/*	
+	(Figure 40.3 from manual)
+	Source-->NIDIV-->NRD--+-->VCO--+-->NOD--+-->NODIV-->Panel clock
+	                      +--NFD<--+        +-->Freq divider 3-->Panel clock LVDS
+                                                +------------------->Clock for LVDS output
+		NIDIV = frequency divider 1
+		NODIV = frequency divider 2
+		NRD = input frequency divider
+		NFD = feedback frequency divider
+		NOD = output frequency divider
+
+		FIN = Source / NIDIV (output of divider 1) (9 MHz to 30 MHz)
+		FREF = FIN / NRD (Reference frequency)	(2.5 MHz to 30 MHz)
+		FVCO = FIN × NFD / NRD (VCO output frequency ) (750 MHz to 1630 MHz)
+		FOUT = FIN × NFD / (NRD × NOD) (LVDS PLL output frequency ) (609 MHz max)
+
+	*/
 	/*
 	  To simplify:
 	   - fix input clock to peripheral1 = 66650000 Hz
+		LVDS_IN_CLK_SEL = 5 (P1 CLK)
 	   - fix NIDIV to 4 => FIN = source / 4 = 16662500 Hz
+		LVDS_IDIV_SET = 2 (NIDIV = 4)
 	   - fix NRD to 5 => FREF = FIN / 5 = source / 20 = 3332500 Hz
-	   - evaluate fout according icksel
+	   - evaluate fout according ocksel
 	   - evaluate NOD to allow fvco be the nearest to 1.1 GHz [sqrt(750*1630) MHz]
 	*/
 
-	source = clk_get_rate(priv->dot_clk);
-	BUG_ON(source == 0);
-	fref = source / 20;
+	/* LVDS Clock Select Register (LCLKSELR) Settings */
+	#define MY_LVDS_SET_IN_CLK_SEL	VDC5_LVDS_INCLK_SEL_PERI /* P1 Clock (fixed) */
+	#define MY_LVDS_IDIV_SET	VDC5_LVDS_NDIV_4	/* NIDIV = div by 4 */
+	#define MY_LVDS_ODIV_SET	VDC5_LVDS_NDIV_4	/* NODIV = div by 4 */
 
+	/* LVDS PLL Setting Register (LPLLSETR) Settings */
+	/* LVDSPLL_FD is run-time calucalted */			/* NFD = ??? */
+	#define MY_LVDSPLL_RD	4				/* NRD = div by 5 */
+	/* LVDSPLL_OD is run-time calucalted */			/* NOD = ??? */
+
+
+	/* Source is P1 Clock (fixed) */
+	source = clk_get_rate(priv->p1_clk);
+	BUG_ON(source == 0);
+
+	/* Calculate FREF */
+	/* FREF = FIN / NRD */
+	fref = source / (1 << MY_LVDS_IDIV_SET);
+	fref = fref / (MY_LVDSPLL_RD + 1);
+
+	/* Convert pixclock in ps to hertz */
 	(void)do_div(desired64, pdata->videomode->pixclock);
 	desired = (unsigned long)desired64;
+ 
+	fout = desired;		/* our desired panel clock */
 
-	fout = desired;		/* desired */
-	if (pdata->panel_icksel == OCKSEL_PLL_DIV7)
+	/* The LVDS transmition rate (raw PLL output) will be 7x
+	   the panel clock */
+	if (pdata->panel_ocksel == OCKSEL_PLL_DIV7)
 		fout *= 7;
 
+	/* Calcualte NOD */
+	/* Find a VCO output frequncy that gets us as close to 1.1GHz
+	   [sqrt(750*1630) MHz] as possible (over or under). Try
+	   all 4 possible NOD values
+	   NOD = 2 ^ LVDSPLL_OD */
 	for (i = 0, nod = 0; i < 4; i++) {
+		/* How many times does 1.1GHz need to be halved
+		   in order to equal fout? */
 		nod_array[i] = (1105667219 >> i) - fout;
 		if (nod_array[i] < 0)
 			nod_array[i] = -nod_array[i];
 		if (nod_array[i] < nod_array[nod])
-			nod = i;
+			nod = i;	/* the closest value (+ or -) */
 	}
 
-	fvco = fout * (1 << nod);	/* desired */
+	/* Our desired FVCO based on our desire pixelclock */
+	fvco = fout * (1 << nod);	/* desired fvco */
 
-	/* real values */
+	/* Determine our real values based on true clock source (FREF) */
 	nfd = ROUNDED_DIV(fvco, fref);
-	fvco = fref * nfd;
-	fout = fvco / (1 << nod);
+	fvco = fref * nfd;		/* real fvco */
+	fout = fvco / (1 << nod);	/* real fout */
 
+	/* Clock Frequency Division Ratio of the VDC5 channel is fixed
+	   to 1:1 (since we are doing all the work here to make sure
+	   the panel clock is a good value) */
 	priv->dcdr = 1;
+
 	priv->dc = fout;
-	if (pdata->panel_icksel == OCKSEL_PLL_DIV7)
+
+	/* Panel dot clock is 1/7 of LVDS tx clock */
+	if (pdata->panel_ocksel == OCKSEL_PLL_DIV7)
 		priv->dc /= 7;
 
+	/* Print out values for user to confirm frequencies are
+	   within correct ranges */
 	dev_dbg(&priv->pdev->dev,
-		"LVDS: Fref %u Hz, NFD %u, Fvco %u Hz, nod 1/%u, Fout %u MHz\n",
-		fref, nfd, fvco, 1 << nod, fout);
+		"LVDS: target %u Hz, actual %lu Hz, Fref %u Hz, NFD %u, Fvco %u Hz, nod 1/%u, Fout %u Hz\n",
+		desired, priv->dc, fref, nfd, fvco, 1 << nod, fout);
 
 	tmp = vdc5fb_read(priv, SYSCNT_PANEL_CLK);
 	tmp &= ~PANEL_ICKEN;
 	vdc5fb_write(priv, SYSCNT_PANEL_CLK, tmp);
 
-#if 0
+#if 1
 	/* Specify the characteristics of LVDS output buffer: LPHYACC.SKEWC[1:0] = 01 */
+	/* As required by hardware manual */
 	tmp = vdc5fb_read(priv, LPHYACC);
 	tmp &= ~0x0003;
 	tmp |= 0x0001;
@@ -383,23 +446,25 @@ static int vdc5fb_init_lvds(struct vdc5fb_priv *priv)
 #endif
 
 	/* LCLKSELR: LVDS clock select register */
+
+	/* Mask bits to 0 */
 	tmp = vdc5fb_read(priv, LCLKSELR);
 	tmp &= ~LVDS_LCLKSELR_MASK;
 	vdc5fb_write(priv, LCLKSELR, tmp);
 
 	/* The clock input to frequency divider 1 */
-	tmp |= LVDS_SET_IN_CLK_SEL(VDC5_LVDS_INCLK_SEL_PERI);
+	tmp |= LVDS_SET_IN_CLK_SEL(MY_LVDS_SET_IN_CLK_SEL);
 	vdc5fb_write(priv, LCLKSELR, tmp);
 
 	/* The frequency dividing value (NIDIV) for frequency divider 1 */
-	tmp |= LVDS_SET_IDIV(VDC5_LVDS_NDIV_4);
+	tmp |= LVDS_SET_IDIV(MY_LVDS_IDIV_SET);
 	vdc5fb_write(priv, LCLKSELR, tmp);
 
 	/* The frequency dividing value (NODIV) for frequency divider 2 */
-	tmp |= LVDS_SET_ODIV(VDC5_LVDS_NDIV_4);
+	tmp |= LVDS_SET_ODIV(MY_LVDS_ODIV_SET);
 	vdc5fb_write(priv, LCLKSELR, tmp);
 
-	/* A channel in VDC5 whose data is to be output through the LVDS */
+	/* The VDC5 channel whose data is to be output through the LVDS */
 	if (priv->pdev->id)
 		tmp |= LVDS_VDC_SEL;
 	vdc5fb_write(priv, LCLKSELR, tmp);
@@ -416,7 +481,7 @@ static int vdc5fb_init_lvds(struct vdc5fb_priv *priv)
 	vdc5fb_write(priv, LPLLSETR, tmp);
 
 	/* The frequency dividing value (NRD) for the input frequency */
-	tmp |= LVDS_SET_RD(0x0004);
+	tmp |= LVDS_SET_RD(MY_LVDSPLL_RD);
 	vdc5fb_write(priv, LPLLSETR, tmp);
 
 	/* The frequency dividing value (NOD) for the output frequency */
@@ -471,8 +536,8 @@ static int vdc5fb_init_syscnt(struct vdc5fb_priv *priv)
 	/* Setup panel clock */
 	tmp = PANEL_DCDR(priv->dcdr);
 	tmp |= PANEL_ICKEN;
-	tmp |= PANEL_OCKSEL(pdata->use_lvds ? pdata->panel_icksel : 0);
-	tmp |= PANEL_ICKSEL(pdata->use_lvds ? 0: pdata->panel_icksel);
+	tmp |= PANEL_OCKSEL(pdata->panel_ocksel);
+	tmp |= PANEL_ICKSEL(pdata->panel_icksel);
 	vdc5fb_write(priv, SYSCNT_PANEL_CLK, tmp);
 
 	return 0;
@@ -1049,10 +1114,17 @@ static void vdc5fb_set_videomode(struct vdc5fb_priv *priv,
 	if (priv->info->screen_base)	/* sanity check */
 		vdc5fb_clear_fb(priv);
 
-	if (pdata->use_lvds)
+	if (pdata->use_lvds) {
 		vdc5fb_init_lvds(priv);
-	else if (vdc5fb_set_panel_clock(priv, mode) < 0)
-		dev_err(&priv->pdev->dev, "cannot get dcdr\n");
+	}
+	else {
+		/* This driver assumes P1 clock will always be used
+		   as the panel clock source for both RGB and LVDS */
+		BUG_ON( pdata->panel_icksel != ICKSEL_P1CLK);
+
+		if (vdc5fb_set_panel_clock(priv, mode) < 0)
+				dev_err(&priv->pdev->dev, "cannot get dcdr\n");
+	}
 
 	dev_info(&priv->pdev->dev,
 		"%s: [%s] dotclock %lu.%03u MHz, dcdr %u\n",
@@ -1475,8 +1547,8 @@ static int vdc5fb_start(struct vdc5fb_priv *priv)
 	if (error < 0)
 		return error;
 
-	if (priv->dot_clk) {
-		error = clk_enable(priv->dot_clk);
+	if (priv->p1_clk) {
+		error = clk_enable(priv->p1_clk);
 		if (error < 0)
 			return error;
 	}
@@ -1494,8 +1566,8 @@ static int vdc5fb_start(struct vdc5fb_priv *priv)
 
 static void vdc5fb_stop(struct vdc5fb_priv *priv)
 {
-	if (priv->dot_clk)
-		clk_disable(priv->dot_clk);
+	if (priv->p1_clk)
+		clk_disable(priv->p1_clk);
 	if (priv->lvds_clk)
 		clk_disable(priv->lvds_clk);
 	clk_disable(priv->clk);

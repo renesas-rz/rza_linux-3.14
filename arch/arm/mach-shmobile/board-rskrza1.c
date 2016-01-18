@@ -266,6 +266,7 @@ static const struct platform_device_info dma_info  __initconst = {
 
 /* BOARD: Change if not using 13.33MHz main crystal */
 #define	P1CLK			((13330000 * 30) / 6)
+/* pixclock is expressed in ps (pico seconds) */
 #define	PIXCLOCK(hz, div)	\
 	(u32)(1000000000000 / ((double)(hz) / (double)(div)))
 
@@ -416,7 +417,7 @@ uint8_t gr3_fb[ 200*200*4 ] __attribute__ ((aligned (PAGE_SIZE)));
 static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata = {
 	.name			= "gwp0700cnwv04",
 	.videomode		= &videomode_gwp0700cnwv04,
-	.panel_icksel		= ICKSEL_P1CLK,
+	.panel_icksel		= ICKSEL_P1CLK,	/* see include/video/vdc5fb.h */
 	.bpp			= VDC5_0_BPP,
 	.panel_width		= 154,	/* mm, unused */
 	.panel_height		= 86,	/* mm, unused */
@@ -561,7 +562,7 @@ static struct fb_videomode videomode_hsd070pww1 = {
 	.refresh	= 60,	/* not fixed */
 	.xres		= 1280,
 	.yres		= 800,
-	.pixclock	= PIXCLOCK(P1CLK, 1),  /* 66MHz min:64.3, typ:71.1MHz, max: 82 */
+	.pixclock	= PIXCLOCK(71100000,1),  /* min:64.3MHz, typ:71.1MHz, max:82MHz */
 	.left_margin	= 16,	/* horizontal back porch */
 	.right_margin	= 16,	/* horizontal front porch */
 	.upper_margin	= 24,	/* vertical back porch */
@@ -576,7 +577,7 @@ static struct fb_videomode videomode_hsd070pww1 = {
 static const struct vdc5fb_pdata vdc5fb_hsd070pww1_pdata = {
 	.name			= "hsd070pww1",
 	.videomode		= &videomode_hsd070pww1,
-	.panel_icksel		= OCKSEL_PLL_DIV7,	/* see include/video/vdc5fb.h */
+	.panel_ocksel		= OCKSEL_PLL_DIV7,	/* see include/video/vdc5fb.h */
 	.bpp			= VDC5_1_BPP,
 	.panel_width		= 0,	/* mm, unused */
 	.panel_height		= 0,	/* mm, unused */
