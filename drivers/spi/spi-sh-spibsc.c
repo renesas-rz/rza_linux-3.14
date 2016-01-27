@@ -816,11 +816,11 @@ static int spibsc_receive_data(struct spibsc_priv *sbsc, struct spi_transfer *t)
 
 static void spibsc_hw_cs_disable(struct spibsc_priv *sbsc)
 {
-	u8 cmd = CMD_RDSR, data;
-
-	/* send Read status command to negate SSL line */
-	spibsc_do_send_cmd(sbsc, &cmd, 1);
-	spibsc_do_receive_data(sbsc, &data, 1);
+	/* Make sure CS goes back low (it might have been left high
+	   from the last transfer). It's tricky because basically,
+	   you have to disable RD and WR, then start a dummy transfer. */
+	spibsc_write(sbsc, SMCR, 1);
+	spibsc_write(sbsc, SMCR, 0);
 }
 
 /*
