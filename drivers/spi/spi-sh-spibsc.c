@@ -248,7 +248,7 @@
 #define	CMD_QOR		(0x6b)	/* Read Quad Out (3-byte address) */
 #define	CMD_WREN	(0x06)	/* Write enable */
 #define CMD_RDSR	(0x05)	/* Read status */
-#define CMD_SE		(0xd8)	/* Sector erase */
+#define CMD_SE		(0xd8)	/* Sector erase (3-byte address) */
 #define	CMD_RDID	(0x9f)	/* Read Identification */
 #define	CMD_WRR		(0x01)	/* Write SR1, CR1 register */
 #define	CMD_RDCR	(0x35)	/* Read configuration register */
@@ -257,6 +257,14 @@
 #define	CMD_WRDI	(0x04)	/* set WEL(SR1:bit1)bit to 0 */
 #define	CMD_RESET	(0xF0)	/* Software Reset */
 #define CMD_MBR		(0xFF)	/* Mode Bit Reset */
+#define CMD_4READ	(0x13)	/* 4-byte READ (4-byte address) */
+#define CMD_4FAST_READ	(0x0C)	/* 4-byte FAST_READ (4-byte address) */
+#define	CMD_4DOR	(0x3c)	/* Read Dual Out (4-byte address) */
+#define	CMD_4QOR	(0x6c)	/* Read Quad Out (4-byte address) */
+#define	CMD_4PP		(0x12)	/* Page Program (4-byte address) */
+#define CMD_4SE		(0xdc)	/* Sector erase (4-byte address) */
+#define CMD_4ADDR_ENTR	(0xB7)	/* Enter 4-byte Address Mode (Micron) */
+#define CMD_4ADDR_EXIT	(0xE9)	/* Exit 4-byte Address Mode (Micron) */
 
 /* SR1 register bit */
 #define	SR1_SRWD	0x80	/* Status Register Write Disable */
@@ -289,24 +297,79 @@
 #define SMDMCR	0x60
 #define SMDRENR	0x64
 
+struct dcyle_entry;
+
 struct spibsc_priv {
 	void __iomem *addr;
 	struct spi_master *master;
 	struct device *dev;
 	struct clk *clk;
 	struct sh_spibsc_info *info;
+	const struct dcyle_entry *chip_timing;
 	u8 bspw;	/* bits per word */
+	u8 quad_en;	/* quad commands can be used */
+	u8 addr4_mode;	/* Extended Address mode (ALL commands send 4 bytes of address) */
+	u8 last_cmd;	/* keep track of the last command sent */
 	u32 max_speed;	/* max speed hz */
 	u32 bitw;	/* data_bitw */
 	u32 dcyle;	/* dmy_cycle */
+	u32 jedec_id;	/* Manf ID, Device ID */
+};
+
+#define MAX_CMD_COUNT 10
+struct dcyle_entry {
+	u32	device_id;
+	int (*quad_setup)(struct spibsc_priv *sbsc);
+	u8	cmd[MAX_CMD_COUNT];	/* SPI comamnd */
+	u8	dcyle[MAX_CMD_COUNT];	/* number of dummy cycles requried */
+};
+
+/* Protypes for quad_setup functions */
+static int spansion_quad_mode_en(struct spibsc_priv *sbsc);
+static int micron_quad_mode_en(struct spibsc_priv *sbsc);
+
+/* This table holds the number of dummy cycles needs for each device
+ * If the device is not in this list, then it is assuem that only 1-BIT
+ * transfers are support (no dual or quad modes) */
+const struct dcyle_entry dummy_cycle_table[] = 
+{
+	/* Spansion S25FL512S (64MB) */
+	/* Assumes Latency Code of 00 (defualt) */
+	{
+		.device_id = 0x10220,
+		.quad_setup = spansion_quad_mode_en,
+		.cmd[0] = CMD_FAST_READ,/* Fast Read (3-byte address) */
+		.dcyle[0] = 8,
+		.cmd[1] = CMD_4FAST_READ,/* Fast Read (4-byte address) */
+		.dcyle[1] = 8,
+		.cmd[2] = CMD_QOR,	/* Read Quad Out (3-byte address) */
+		.dcyle[2] = 8,
+		.cmd[3] = CMD_4QOR,	/* Read Quad Out (4-byte address) */
+		.dcyle[3] = 8,
+	},
+	/* Micron N25Q00AA (128MB) */
+	{
+		.device_id = 0x20BA21,
+		.quad_setup = micron_quad_mode_en,
+		.cmd[0] = CMD_FAST_READ,/* Fast Read (3-byte address) */
+		.dcyle[0] = 0,
+		.cmd[1] = CMD_4FAST_READ,/* Fast Read (4-byte address) */
+		.dcyle[1] = 8,
+		.cmd[2] = CMD_QOR,	/* Read Quad Out (3-byte address) */
+		.dcyle[2] = 8,
+		.cmd[3] = CMD_4QOR,	/* Read Quad Out (4-byte address) */
+		.dcyle[3] = 8,
+	}
 };
 
 #define BITW_1BIT	(0)
 #define BITW_2BIT	(1)
 #define BITW_4BIT	(2)
 
-#undef DEBUG
-#ifdef DEBUG
+/* Show the contents of the messages. Note that CONFIG_SPI_DEBUG should also be enabled */
+//#define DEBUG_DETAILS
+
+#ifdef DEBUG_DETAILS
 #define	DEBUG_COMMAND()						\
 	do {							\
 		int i;						\
@@ -341,33 +404,48 @@ struct spibsc_priv {
 /*     and SMDMCR.DMCYC(number of dummy cycle)*/
 static void spibsc_set_busio(struct spibsc_priv *sbsc, u8 cmd)
 {
-	u32 bitw, dcyle;
+	u32 bitw, dcyle = 0;
+	int i;
 
+	/* First check if last command was the same as this one. If so,
+	 * sbsc->bitw and sbsc->dcyle are already correct and we can save
+	 * time by just returning */
+	if( cmd == sbsc->last_cmd ) {
+		return;
+	}
+	sbsc->last_cmd = cmd;
+
+	/* Determine bit width */
 	switch (cmd) {
-	case CMD_FAST_READ:	/* 0x0b Fast Read (3-byte address) */
-		dcyle = 8;
+	case CMD_FAST_READ:	/* Fast Read (3-byte address) */
+	case CMD_4FAST_READ:	/* Fast Read (4-byte address) */
 		bitw = BITW_1BIT;
 		break;
-
-	case CMD_DOR:		/* 0x3b Read Dual Out (3-byte address) */
-		dcyle = 8;
+	case CMD_DOR:		/* Read Dual Out (3-byte address) */
+	case CMD_4DOR:		/* Read Dual Out (4-byte address) */
 		bitw = BITW_2BIT;
 		break;
-
-	case CMD_QOR:		/* 0x6b Read Quad Out (3-byte address) */
-		dcyle = 8;
+	case CMD_QOR:		/* Read Quad Out (3-byte address) */
+	case CMD_4QOR:		/* Read Quad Out (4-byte address) */
 		bitw = BITW_4BIT;
 		break;
-
-	case CMD_QPP:		/* 0x32 Quad Page Program (3-byte address) */
-		dcyle = 0;
+	case CMD_QPP:		/* Quad Page Program (3-byte address) */
 		bitw = BITW_4BIT;
 		break;
-
 	default:
-		dcyle = 0;
 		bitw = BITW_1BIT;
 		break;
+	}
+
+	/* Determine if this command requries dummy cycles (device specific). */
+	if( sbsc->chip_timing ) {
+		for( i = 0; i < MAX_CMD_COUNT; i++) {
+			if( sbsc->chip_timing->cmd[i] == cmd ) {
+				/* This command requires dummy cycles */
+				dcyle = sbsc->chip_timing->dcyle[i];
+				break;
+			}
+		}
 	}
 
 	sbsc->bitw	= bitw;
@@ -416,11 +494,6 @@ static int spibsc_wait_trans_completion(struct spibsc_priv *sbsc)
 	return -ETIMEDOUT;
 }
 
-static int spibsc_do_send_data(
-	struct spibsc_priv *sbsc,
-	const u8 *data,
-	int len);
-
 static int spibsc_do_send_cmd(
 	struct spibsc_priv *sbsc,
 	const u8 *command,
@@ -451,6 +524,11 @@ static int spibsc_do_send_cmd(
 			break;	/* Software Reset */
 		if (command[0] == CMD_MBR)
 			break;	/* Mode Bit Reset */
+		if (command[0] == CMD_4ADDR_ENTR)
+			break;	/* ENTER 4-byte Address Mode */
+		if (command[0] == CMD_4ADDR_EXIT)
+			break;	/* EXIT 4-byte Address Mode */
+
 		goto _show_me;
 		break;
 	case 2:
@@ -528,22 +606,34 @@ static int spibsc_do_send_cmd(
 			break;	/* READ      + ADDR32 */
 		if (command[0] == CMD_FAST_READ)
 			break;	/* FAST_READ + ADDR32 */
+		if (command[0] == CMD_4READ)
+			break;	/* 4READ      + ADDR32 */
+		if (command[0] == CMD_4FAST_READ)
+			break;	/* 4FAST_READ + ADDR32 */
 		if (command[0] == CMD_DOR)
 			break;	/* DOR       + ADDR32 */
 		if (command[0] == CMD_QOR)
 			break;	/* QOR       + ADDR32 */
+		if (command[0] == CMD_4QOR)
+			break;	/* 4QOR       + ADDR32 */
 		if (command[0] == CMD_PP)
 			break;	/* PP        + ADDR32 */
+		if (command[0] == CMD_4PP)
+			break;	/* 4PP        + ADDR32 */
 		if (command[0] == CMD_QPP)
 			break;	/* QPP       + ADDR32 */
 		if (command[0] == CMD_SE)
 			break;	/* SE        + ADDR32 */
+		if (command[0] == CMD_4SE)
+			break;	/* 4SE        + ADDR32 */
 		goto _show_me;
 		break;
 _show_me:
 	default:
+		/* The command that was passed is not in the case statement above. Therefore
+		 * please add to the list */
 		pr_err("%s: ERROR bad clen(%d) or command(%02x)\n",
-							__func__, clen, cmd);
+							__func__, clen, command[0]);
 		return -ENODATA;
 		break;
 	}
@@ -727,53 +817,102 @@ static int spibsc_do_receive_data(struct spibsc_priv *sbsc, u8 *data, int len)
 
 static int spibsc_send_cmd(struct spibsc_priv *sbsc, struct spi_transfer *t)
 {
-	const u8 *command;
+	u8 *command;
 	int len, ret;
+#define CMD_LENGTH (10)
+	u8 cmd[CMD_LENGTH];
+	int loop;
 
 	/* wait for spi transfer completed */
 	ret = spibsc_wait_trans_completion(sbsc);
 	if (ret)
 		return	ret;	/* return error */
 
-	command = t->tx_buf;
+	command = (u8 *) t->tx_buf; /* cast to remove the 'const' restriction */
 	len = t->len;
 
 	DEBUG_COMMAND();
-
+	
+	/* Block commands that will put the SPI flash in 4-byte address mode.
+	 * SPI Flash devices have a 4-byte mode where you can send legacy
+	 * 3-byte address commands (like FAST_READ) but with 4-bytes address
+	 * after entering this mode. This is not good for RZ/A1 because
+	 * if the SPI flash is in 4-byte mode and the RZ/A resets, it will
+	 * try fetching instructions (in XIP mode) using 3-byte addresses and
+	 * will never boot. */
+	if (command[0] == CMD_4ADDR_ENTR) /* Micron Flash comamnd */
 	{
-#define CMD_LENGTH (10)
-		u8 cmd[CMD_LENGTH];
-		int loop;
+		/* the upper layer now thinks the SPI flash is not in 4-byte mode.
+		 * Therefore, we need to swap all 3-byte comamnds with 4-byte commands */
+		sbsc->addr4_mode = 1;
+		return 0;
+	}
+	if (command[0] == CMD_4ADDR_EXIT) /* Micron Flash comamnd */
+	{
+		sbsc->addr4_mode = 0;
+		return 0;
+	}
+	if (command[0] == CMD_BRWR) /* Spansion Flash comamnd */
+	{
+		/* Extended Address Enable (EXTADD) is bit-7 */
+		if( command[1] & 0x80 )
+			sbsc->addr4_mode = 1;
+		else
+			sbsc->addr4_mode = 0;
 
-		if (len > CMD_LENGTH) {
-			pr_err("%s: command length error\n", __func__);
-			return -EIO;
-		}
-
-		cmd[0] = (u8)command[0];
-		switch (command[0]) {
-		case CMD_FAST_READ:
-			/* cmd[0] = CMD_DOR; */	/* change Dual Mode */
-			cmd[0] = CMD_QOR;	/* change Quad Mode */
-			break;
-		#if 0	/* comment out because not tested */
-		case CMD_PP:
-			cmd[0] = CMD_QPP;	/* change Quad Mode */
-			break;	/* nothing to do */
-		#endif
-		case CMD_READ:
-		default:
-			break;	/* nothing to do */
-		}
-		/* command copy */
-		for (loop = 1; loop < len; loop++)
-			cmd[loop] = (u8)command[loop];
-
-		spibsc_set_busio(sbsc, cmd[0]);
-		return spibsc_do_send_cmd(sbsc, cmd, len);
-
+		/* Force to always be in 3-byte mode: bit-7 = 0 */
+		command[1] &= ~0x80;
+		return 0;
 	}
 
+	if (len > CMD_LENGTH) {
+		pr_err("%s: command length error\n", __func__);
+		return -EIO;
+	}
+
+	cmd[0] = (u8)command[0];
+	switch (command[0]) {
+
+	/* Convert READ commands to 4-byte address if needed */
+	case CMD_READ:
+		if( sbsc->addr4_mode )
+			cmd[0] = CMD_4READ;	/* 4-byte READ */
+		break;
+
+	/* Convert PAGE PROGRAM commands to 4-byte address if needed */
+	case CMD_PP:
+		if( sbsc->addr4_mode )
+			cmd[0] = CMD_4PP;	/* 4-byte PROGRAM */
+		break;
+
+	/* Convert SECTOR ERASE commands to 4-byte address if needed */
+	case CMD_SE:
+		if( sbsc->addr4_mode )
+			cmd[0] = CMD_4SE;	/* 4-byte ERASE */
+		break;
+
+	/* Convert FAST_READ commands to 4-byte address, DUAL or QUAD read commands */
+	case CMD_FAST_READ:
+		if( sbsc->addr4_mode )
+			cmd[0] = CMD_4FAST_READ;	/* 4-byte FAST_READ */
+
+		if( (sbsc->quad_en) && (!sbsc->addr4_mode) )
+			cmd[0] = CMD_QOR;	/* change to Quad Mode (3-byte addr) */
+
+		if( (sbsc->quad_en) && (sbsc->addr4_mode) )
+			cmd[0] = CMD_4QOR;	/* change to Quad Mode (4-byte addr) */
+		break;
+
+	default:
+		break;	/* nothing to do */
+	}
+
+	/* command copy */
+	for (loop = 1; loop < len; loop++)
+		cmd[loop] = (u8)command[loop];
+
+	spibsc_set_busio(sbsc, cmd[0]);
+	return spibsc_do_send_cmd(sbsc, cmd, len);
 }
 
 static int spibsc_send_data(struct spibsc_priv *sbsc, struct spi_transfer *t)
@@ -918,54 +1057,13 @@ static int spibsc_send_then_receive(
 	return ret;	/* return error */
 }
 
-static int wait_for_device_ready(struct spibsc_priv *sbsc)
-{
-	u8 cmd[1], sr1;
-	int timeout;
-#define	TIMEOUT		50000
-	int err;
-
-	timeout = 0;
-	do {
-		cmd[0] = CMD_RDSR;
-		err = spibsc_send_then_receive(sbsc, cmd, 1, &sr1, 1);
-		if (err < 0) {
-			dev_err(sbsc->dev, "error %d reading SR\n", err);
-				return -EIO;
-		}
-		if (sr1 & (SR1_P_ERR | SR1_E_ERR)) {	/* Error Occurred */
-			/* clear P_ERR/E_ERR(SR1:bit6/5) */
-			cmd[0] = CMD_CLSR;
-			(void) spibsc_send_then_receive(sbsc, cmd, 1, NULL, 0);
-			continue;
-		}
-		if (sr1 & SR1_WIP) {	/* device busy */
-			udelay(10);
-			continue;
-		}
-		if (sr1 & SR1_WEL) {	/* Device accepts Write Registers */
-			cmd[0] = CMD_WRDI;	/* clear WEL(SR1:bit1)*/
-			(void) spibsc_send_then_receive(sbsc, cmd, 1, NULL, 0);
-			continue;
-		}
-		/* Only SRWD and BP0-BP2 bits are valid here */
-		/* P_ERR, E_ERR, WEL and WIP bits are cleared here */
-		break;
-	} while (timeout++ < TIMEOUT);
-
-	if (timeout >= TIMEOUT)
-		pr_err("%s: timedout (last sr1=%02x)\n", __func__, sr1);
-
-	return 0;
-}
-
-static int set_quad_mode(struct spibsc_priv *sbsc)
+static int spansion_quad_mode_en(struct spibsc_priv *sbsc)
 {
 	u8 cmd[3];
 	u8 sr1, cr1;
-
-	wait_for_device_ready(sbsc);		/* RZLSP */
-
+	int err;
+	int timeout = 50000;
+	
 	cmd[0] = CMD_MBR;					/* Mode Bit Reset */
 	(void) spibsc_send_then_receive(sbsc, cmd, 1, NULL, 0);
 	cmd[0] = CMD_RESET;					/* Software Reset */
@@ -994,7 +1092,38 @@ static int set_quad_mode(struct spibsc_priv *sbsc)
 		cmd[2] = (cr1 & ~(CR1_LC_MASK | CR1_FREEZE)) | CR1_QUAD;
 		(void) spibsc_send_then_receive(sbsc, cmd, 3, NULL, 0);
 
-		wait_for_device_ready(sbsc);
+		/* wait for the device to become ready */
+		do {
+			timeout--;
+			cmd[0] = CMD_RDSR;
+			err = spibsc_send_then_receive(sbsc, cmd, 1, &sr1, 1);
+			if (err < 0) {
+				dev_err(sbsc->dev, "error %d reading SR\n", err);
+					return -EIO;
+			}
+			if (sr1 & (SR1_P_ERR | SR1_E_ERR)) {	/* Error Occurred */
+				/* clear P_ERR/E_ERR(SR1:bit6/5) */
+				cmd[0] = CMD_CLSR;
+				(void) spibsc_send_then_receive(sbsc, cmd, 1, NULL, 0);
+				continue;
+			}
+			if (sr1 & SR1_WIP) {	/* device busy */
+				udelay(10);
+				continue;
+			}
+			if (sr1 & SR1_WEL) {	/* Device accepts Write Registers */
+				cmd[0] = CMD_WRDI;	/* clear WEL(SR1:bit1)*/
+				(void) spibsc_send_then_receive(sbsc, cmd, 1, NULL, 0);
+				continue;
+			}
+			/* Only SRWD and BP0-BP2 bits are valid here */
+			/* P_ERR, E_ERR, WEL and WIP bits are cleared here */
+			break;
+		} while (timeout);
+
+		if (timeout)
+			pr_err("%s: timedout (last sr1=%02x)\n", __func__, sr1);
+
 	}
 
 	cmd[0] = CMD_RDSR;
@@ -1012,6 +1141,19 @@ static int set_quad_mode(struct spibsc_priv *sbsc)
 		return -1;
 	}
 
+	dev_info(sbsc->dev,"Quad Read enabled for Spansion\n");
+	sbsc->quad_en = 1;
+
+	return 0;
+}
+
+static int micron_quad_mode_en(struct spibsc_priv *sbsc)
+{
+	/* Nothing extra to do for Micron to use quad read commands */
+
+	dev_info(sbsc->dev,"Quad Read enabled for Micron\n");
+	sbsc->quad_en = 1;
+
 	return 0;
 }
 
@@ -1019,6 +1161,10 @@ static int spibsc_setup(struct spi_device *spi)
 {
 	struct spibsc_priv *sbsc = spi_master_get_devdata(spi->master);
 	struct device *dev = sbsc->dev;
+	u8 cmd = 0x9F;
+	u8 id[3];
+	int err;
+	int i;
 
 	if (8 != spi->bits_per_word) {
 		dev_err(dev, "bits_per_word should be 8\n");
@@ -1030,13 +1176,40 @@ static int spibsc_setup(struct spi_device *spi)
 	spibsc_write(sbsc, DRCR, DRCR_RCF);
 	spibsc_write(sbsc, SSLDR, SSLDR_INIT);
 	spibsc_write(sbsc, SPBCR, SPBCR_INIT);
+//	spibsc_write(sbsc, SPBCR, 0x0603); /* Slow Down Clock For Debugging */
 
 	dev_dbg(dev, "%s setup\n", spi->modalias);
 
-	if (0 != set_quad_mode(sbsc)) {
-		pr_err("%s: set_quad_mode error\n", __func__);
-		return -EIO;
+	/* Read the ID of the connected SPI flash */
+	/* [0]=Manf, [1]=device, [2]=memory size */
+	err = spibsc_send_then_receive(sbsc, &cmd, 1, id, 3);
+	if( err ) {
+		pr_err("%s: WARNING: Could not detect SPI Flash Device\n", __func__);
 	}
+	else {
+		sbsc->jedec_id = ((u32)id[0] << 16) | ((u32)id[1] << 8) | id[2];
+		dev_info(dev,"JEDEC ID = %06X\n",sbsc->jedec_id);
+	}
+
+	/* Search our cycle delay table. If we find an entry, we'll
+	 * assume the device needs additional setup for dual/quad modes */
+	for( i = 0; i < sizeof(dummy_cycle_table) / sizeof(struct dcyle_entry); i++) {
+		if( dummy_cycle_table[i].device_id == sbsc->jedec_id ) {
+			/* found a match */
+			sbsc->chip_timing = &(dummy_cycle_table[i]);
+
+			if( dummy_cycle_table[i].quad_setup )
+				err = dummy_cycle_table[i].quad_setup(sbsc);
+
+			if (err) {
+				pr_err("%s: set_quad_mode error\n", __func__);
+				return -EIO;
+			}
+			break;
+		}
+	}
+	if ( i == sizeof(dummy_cycle_table) / sizeof(struct dcyle_entry) )
+		pr_err("%s: WARNING: This driver was not tested with this SPI Flash\n", __func__);
 
 	return 0;
 }
