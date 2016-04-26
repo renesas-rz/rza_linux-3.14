@@ -1929,7 +1929,7 @@ static void __init rskrza1_add_standard_devices(void)
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
 
 #if !(XIP_KERNEL_WITHOUT_EXTERNAL_RAM)	/* Uses too much internal RAM */
-#ifdef CONFIG_UOI
+#ifdef CONFIG_UIO
 	platform_device_register_full(&jcu_info);
 #endif /* CONFIG_UIO */
 #endif /* XIP_KERNEL_WITHOUT_EXTERNAL_RAM */
