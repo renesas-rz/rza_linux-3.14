@@ -38,6 +38,7 @@
 #define	OPCODE_WREN		0x06	/* Write enable */
 #define	OPCODE_RDSR		0x05	/* Read status register */
 #define	OPCODE_WRSR		0x01	/* Write status register 1 byte */
+#define	OPCODE_RDFSR		0x70	/* read flag status register */
 #define	OPCODE_NORM_READ	0x03	/* Read data bytes (low frequency) */
 #define	OPCODE_FAST_READ	0x0b	/* Read data bytes (high frequency) */
 #define	OPCODE_DUAL_READ        0x3b    /* Read data bytes (Dual SPI) */
@@ -82,6 +83,9 @@
 
 #define SR_QUAD_EN_MX           0x40    /* Macronix Quad I/O */
 
+/* Flag Status Register bits */
+#define FSR_READY               0x80    /* FSR ready */
+
 /* Configuration Register bits. */
 #define CR_QUAD_EN_SPAN		0x2     /* Spansion Quad I/O */
 
@@ -110,6 +114,7 @@ struct m25p {
 	u8			read_opcode;
 	u8			program_opcode;
 	u8			*command;
+	u8			use_fsr;
 	enum read_type		flash_read;
 };
 
@@ -139,6 +144,28 @@ static int read_sr(struct m25p *flash)
 
 	if (retval < 0) {
 		dev_err(&flash->spi->dev, "error %d reading SR\n",
+				(int) retval);
+		return retval;
+	}
+
+	return val;
+}
+
+ /*
+ * Read the flag status register, returning its value in the location
+ * Return the status register value.
+ * Returns negative if error occurred.
+ */
+static int read_fsr(struct m25p *flash)
+{
+	ssize_t retval;
+	u8 code = OPCODE_RDFSR;
+	u8 val;
+
+	retval = spi_write_then_read(flash->spi, &code, 1, &val, 1);
+
+	if (retval < 0) {
+		dev_err(&flash->spi->dev, "error %d reading FSR\n",
 				(int) retval);
 		return retval;
 	}
@@ -238,15 +265,26 @@ static inline int set_4byte(struct m25p *flash, u32 jedec_id, int enable)
 static int wait_till_ready(struct m25p *flash)
 {
 	unsigned long deadline;
-	int sr;
+	int sr, fsr;
 
 	deadline = jiffies + MAX_READY_WAIT_JIFFIES;
 
 	do {
 		if ((sr = read_sr(flash)) < 0)
 			break;
-		else if (!(sr & SR_WIP))
-			return 0;
+		else if (!(sr & SR_WIP)) {
+
+			if( flash->use_fsr ) {
+				/* only check fsr if sr not busy */
+				fsr = read_fsr(flash);
+				if (fsr < 0)
+					break;
+				if (fsr & FSR_READY)
+					return 0;
+			}
+			else
+				return 0;
+		}
 
 		cond_resched();
 
@@ -862,6 +900,7 @@ struct flash_info {
 #define	SECT_4K_PMC	0x10		/* OPCODE_BE_4K_PMC works uniformly */
 #define	M25P80_DUAL_READ	0x20    /* Flash supports Dual Read */
 #define	M25P80_QUAD_READ	0x40    /* Flash supports Quad Read */
+#define	USE_FSR		0x80		/* use flag status register */
 };
 
 #define INFO(_jedec_id, _ext_id, _sector_size, _n_sectors, _flags)	\
@@ -940,6 +979,7 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "mx25l25635e", INFO(0xc22019, 0, 64 * 1024, 512, 0) },
 	{ "mx25l25655e", INFO(0xc22619, 0, 64 * 1024, 512, 0) },
 	{ "mx66l51235l", INFO(0xc2201a, 0, 64 * 1024, 1024, M25P80_QUAD_READ) },
+	{ "mx66l1g45g",  INFO(0xc2201b, 0, 64 * 1024, 2048, M25P_NO_FR) },
 	{ "mx66l1g55g",  INFO(0xc2261b, 0, 64 * 1024, 2048, M25P80_QUAD_READ) },
 
 	/* Micron */
@@ -948,7 +988,8 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "n25q128a13",  INFO(0x20ba18, 0, 64 * 1024,  256, 0) },
 	{ "n25q256a",    INFO(0x20ba19, 0, 64 * 1024,  512, SECT_4K) },
 	{ "n25q512a",    INFO(0x20bb20, 0, 64 * 1024, 1024, SECT_4K) },
-	{ "n25q00",      INFO(0x20ba21, 0, 64 * 1024, 2048, SECT_4K) },
+	{ "n25q512a1",   INFO(0x20ba20, 0, 64 * 1024, 1024, USE_FSR) },
+	{ "n25q00",      INFO(0x20ba21, 0, 64 * 1024, 2048, USE_FSR) },
 
 	/* PMC */
 	{ "pm25lv512",   INFO(0,        0, 32 * 1024,    2, SECT_4K_PMC) },
@@ -1213,6 +1254,9 @@ static int m25p_probe(struct spi_device *spi)
 
 	if (info->flags & M25P_NO_ERASE)
 		flash->mtd.flags |= MTD_NO_ERASE;
+
+	if (info->flags & USE_FSR)
+		flash->use_fsr = 1;
 
 	ppdata.of_node = spi->dev.of_node;
 	flash->mtd.dev.parent = &spi->dev;
