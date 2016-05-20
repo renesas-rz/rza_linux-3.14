@@ -1,8 +1,7 @@
 /*
- * Device Tree Source for the Genmai board
+ * Device Tree Source for the GENMAI board
  *
- * Copyright (C) 2013-14 Renesas Solutions Corp.
- * Copyright (C) 2014 Wolfram Sang, Sang Engineering <wsa@sang-engineering.com>
+ * Copyright (C) 2014 Renesas America
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
@@ -21,12 +20,15 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySC2,115200 ignore_loglevel rw root=/dev/nfs ip=dhcp";
+		/* Add lots of white space so we have room to overwirte in u-boot */ 
+		bootargs = "console=ttySC2,115200 ignore_loglevel rw root=/dev/nfs ip=dhcp\
+                                                                                       ";
+
 	};
 
 	memory {
 		device_type = "memory";
-		reg = <0x08000000 0x08000000>;
+		reg = <0x08000000 0x08000000>;	/* 128MB @ 0x0x08000000 */
 	};
 
 	lbsc {
