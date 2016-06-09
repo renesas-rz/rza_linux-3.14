@@ -514,7 +514,7 @@ static const struct platform_device_info simplefb_info __initconst = {
 #endif /* FLOATING LAYER SAMPLE */
 
 /* Example of using LVDS on VDC5 ch 1 */
-//#define USE_LVDS
+#define USE_LVDS
 #ifdef USE_LVDS
 /* ==========================================================
  *			LCD 1 Video Section
@@ -572,7 +572,7 @@ static struct fb_videomode videomode_hsd070pww1 = {
 	.refresh	= 60,	/* not fixed */
 	.xres		= 1280,
 	.yres		= 800,
-	.pixclock	= PIXCLOCK(P1CLK, 1),  /* 66MHz min:64.3, typ:71.1MHz, max: 82 */
+	.pixclock	= PIXCLOCK(71100000,1),  /* min:64.3MHz, typ:71.1MHz, max:82MHz */
 	.left_margin	= 16,	/* horizontal back porch */
 	.right_margin	= 16,	/* horizontal front porch */
 	.upper_margin	= 24,	/* vertical back porch */
@@ -587,7 +587,7 @@ static struct fb_videomode videomode_hsd070pww1 = {
 static const struct vdc5fb_pdata vdc5fb_hsd070pww1_pdata = {
 	.name			= "hsd070pww1",
 	.videomode		= &videomode_hsd070pww1,
-	.panel_icksel		= OCKSEL_PLL_DIV7,	/* see include/video/vdc5fb.h */
+	.panel_ocksel		= OCKSEL_PLL_DIV7,	/* see include/video/vdc5fb.h */
 	.bpp			= VDC5_1_BPP,
 	.panel_width		= 0,	/* mm, unused */
 	.panel_height		= 0,	/* mm, unused */
@@ -1927,6 +1927,14 @@ static void __init genmai_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P3_15, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT2 */
 #endif
 
+	/* Set up IRQ for touchscreen */
+	{
+		/* Set for low edge trigger */
+		void __iomem *irc1 = IOMEM(0xfcfef802);
+		__raw_writew((__raw_readw(irc1) & ~(0x3 << 2)), irc1);
+		r7s72100_pfc_pin_assign(P11_15, ALT3, DIIO_PBDC_DIS);  /* IRQ1 */
+	}
+
 #ifdef CONFIG_CAN_RZA1
 	/* Ch 1 (conflicts with Ethernet, requires jumper change) */
 	r7s72100_pfc_pin_assign(P5_9, ALT5, DIIO_PBDC_DIS);	/* CAN CAN1RX */
@@ -1956,18 +1964,18 @@ static void __init genmai_add_standard_devices(void)
 	platform_device_register_full(&scux_info);	/* Sound */
 	platform_device_register_full(&ether_info);	/* Ethernet */
 
-//	platform_device_register_full(&riic0_info);	/* I2C0: Touchscreen and camera */
+	platform_device_register_full(&riic0_info);	/* I2C0: Touchscreen and camera */
 //	platform_device_register_full(&riic1_info);	/* I2C1: Not used */
 //	platform_device_register_full(&riic2_info);	/* I2C2: Not used */
 	platform_device_register_full(&riic3_info);	/* I2C3: Port Expander, EEPROM (MAC Addr), Audio Codec */
 	platform_device_register_full(&rtc_info);	/* RTC */
 
 #ifndef CONFIG_VIDEO_SH_MOBILE_CEU
-	platform_device_register_full(&vdc5fb0_info);	/* VDC5 ch1 */
+	platform_device_register_full(&vdc5fb0_info);	/* VDC5 ch0 */
 	//platform_device_register_full(&simplefb_info);	/* Simplefb (FLOATING LAYER) */
 #else
-	platform_device_register_full(&ceu_info);		/* CEU */
-	platform_device_register_full(&ceu_camera_info);	/* OV7670 */
+	//platform_device_register_full(&ceu_info);		/* CEU */
+	//platform_device_register_full(&ceu_camera_info);	/* OV7670 */
 #endif
 #ifdef USE_LVDS
 	platform_device_register_full(&vdc5fb1_info);	/* VDC5 ch1 */
