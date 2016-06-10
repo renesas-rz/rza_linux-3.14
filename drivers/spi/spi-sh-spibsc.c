@@ -346,7 +346,7 @@ static int micron_cmd_check(struct spibsc_priv *sbsc, u8 *cmd);
 static int micron_addr4_mode(struct spibsc_priv *sbsc, int enter);
 
 /* This table holds the number of dummy cycles needs for each device
- * If the device is not in this list, then it is assuem that only 1-BIT
+ * If the device is not in this list, then it is assume that only 1-BIT
  * transfers are support (no dual or quad modes) */
 const struct spi_dev_param dummy_cycle_table[] =
 {
@@ -911,7 +911,7 @@ static int spibsc_send_cmd(struct spibsc_priv *sbsc, struct spi_transfer *t)
 
 	/* For each command, determine if the command should be converted to
 	 * something else or any addional setup is needed */
-	if( sbsc->dev_param->cmd_check )
+	if( sbsc->dev_param && sbsc->dev_param->cmd_check )
 		sbsc->dev_param->cmd_check(sbsc, cmd);
 
 #endif /* DIS_CMD_COVERT */
