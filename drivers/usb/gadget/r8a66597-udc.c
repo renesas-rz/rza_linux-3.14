@@ -865,9 +865,8 @@ static void init_controller(struct r8a66597 *r8a66597)
 #endif
 	}
 #ifdef CONFIG_ARCH_R7S72100
-	msleep(20);
 	r8a66597_bset(r8a66597, UPLLE, SYSCFG0);
-	msleep(20);
+	udelay(1000);
 	r8a66597_bset(r8a66597, SUSPM, SUSPMODE0);
 #endif
 }
