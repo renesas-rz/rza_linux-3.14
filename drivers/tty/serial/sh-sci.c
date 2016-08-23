@@ -602,6 +602,9 @@ static void sci_transmit_chars(struct uart_port *port)
 	int count;
 
 	status = serial_port_in(port, SCxSR);
+
+	if (port->type == PORT_SCI && uart_circ_empty(xmit))
+		return;
 	if (!(status & SCxSR_TDxE(port))) {
 		ctrl = serial_port_in(port, SCSCR);
 		if (uart_circ_empty(xmit))
@@ -1512,7 +1515,9 @@ static void sci_start_tx(struct uart_port *port)
 	}
 #endif
 
-	if (!s->chan_tx || port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
+	if (port->type == PORT_SCI) {
+		if(!uart_circ_empty(&s->port.state->xmit)) sci_transmit_chars(port);
+	} else if (!s->chan_tx || port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
 		/* Set TIE (Transmit Interrupt Enable) bit in SCSCR */
 		ctrl = serial_port_in(port, SCSCR);
 		serial_port_out(port, SCSCR, ctrl | SCSCR_TIE);

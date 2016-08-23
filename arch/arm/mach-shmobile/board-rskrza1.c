@@ -75,7 +75,7 @@
 
 /* Board Options */
 //#define RSPI_TESTING	/* Uncomment for RSPI4 enabled on CN15 */
-
+//#define SCI_TESTING	/* Uncomment for SCI0 enabled on JP1 */
 
 
 /*
@@ -1183,6 +1183,42 @@ R7S72100_SCIF(2, 0xe8008000, gic_iid(229));
 					  sizeof(scif##index##_platform_data))
 
 /* ==========================================================
+ *		SCI Section
+ * UART
+ * ==========================================================*/
+#define R7S72100_SCI(index, baseaddr, irq)				\
+static const struct plat_sci_port sci##index##_platform_data = {	\
+	.type		= PORT_SCI,					\
+	.regtype	= SCIx_SCI_REGTYPE,				\
+	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,		\
+	.scscr		=  SCSCR_RE | SCSCR_TE |	\
+			  SCSCR_REIE			\
+};									\
+									\
+static struct resource sci##index##_resources[] = {			\
+	DEFINE_RES_MEM(baseaddr, 0x100),				\
+	DEFINE_RES_IRQ(irq),						\
+	DEFINE_RES_IRQ(irq + 1),					\
+	DEFINE_RES_IRQ(irq + 2),					\
+	DEFINE_RES_IRQ(-1),						\
+}									\
+
+/* BOARD: To save on RAM usage, we are only declaring the SCI
+	  channels we plan on using. Modify if you plan on
+	  using other channels */
+#ifdef SCI_TESTING
+R7S72100_SCI(8, 0xe800B000, gic_iid(347));	/* Not used */
+//R7S72100_SCI(9, 0xe800B800, gic_iid(351));	/* Not used */
+#endif
+
+#define r7s72100_register_sci(index)					       \
+	platform_device_register_resndata(&platform_bus, "sh-sci", index,      \
+					  sci##index##_resources,	       \
+					  ARRAY_SIZE(sci##index##_resources),  \
+					  &sci##index##_platform_data,	       \
+					  sizeof(sci##index##_platform_data))
+
+/* ==========================================================
  *		PWM/LCD Backlight Section
  *
  * This is just a driver example for PWM Pin (Pin TIOC4A only)
@@ -1851,6 +1887,11 @@ int rza1_i2c_read_byte(u8 ch, u8 devaddr, u8 regoffset, u8 *value)
 
 static void __init rskrza1_add_standard_devices(void)
 {
+
+#ifdef SCI_TESTING
+	void*	ICDICFR21_22;
+#endif
+
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, 16K*8way(defualt) */
 	/* NOTES: BRESP can be set for IP version after r2p0 */
@@ -1901,6 +1942,11 @@ static void __init rskrza1_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P3_13, ALT7, DIIO_PBDC_EN);	/* SDHI1 CMD */
 	r7s72100_pfc_pin_assign(P3_14, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT3*/
 	r7s72100_pfc_pin_assign(P3_15, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT2 */
+#endif
+
+#ifdef SCI_TESTING
+	r7s72100_pfc_pin_assign(P3_5, ALT5, DIIO_PBDC_DIS);	/* SCI0 TX */
+	r7s72100_pfc_pin_assign(P3_6, ALT5, DIIO_PBDC_DIS);	/* SCI0 RX */
 #endif
 
 	/* Set up IRQ for touchscreen */
@@ -2014,6 +2060,15 @@ static void __init rskrza1_add_standard_devices(void)
 //	r7s72100_register_scif(5);	/* SCIF ch5 */ /* Not used */
 //	r7s72100_register_scif(6);	/* SCIF ch6 */ /* Not used */
 //	r7s72100_register_scif(7);	/* SCIF ch7 */ /* Not used */
+
+#ifdef SCI_TESTING
+	r7s72100_register_sci(8);
+	/* Chip bug - set SCI RxD0/TxD0 interrupt to edge (POR is level) */
+	ICDICFR21_22 = ioremap_nocache(0xE8201C54, 0x8);
+	*((u32 *)ICDICFR21_22) = 0x5F555555;		/* SCI0 */
+	*((u32 *)(ICDICFR21_22)+1) = 0x5555555F;	/* SCI1 */
+	iounmap(ICDICFR21_22);
+#endif
 
 }
 
@@ -2144,7 +2199,7 @@ static void __init rskrza1_init_late(void)
 {
 	/* Make RSPI4 availible. */
 	/* Done here because we have to wait till i2c driver is ready */
-#if defined(RSPI_TESTING) && (defined CONFIG_SPI_RSPI) && !(defined CONFIG_SH_ETH)
+#if defined(RSPI_TESTING) || (defined SCI_TESTING)
 	{
 		int i;
 		u8 value;
@@ -2169,6 +2224,10 @@ static void __init rskrza1_init_late(void)
 			r7s72100_pfc_pin_assign(P2_9, ALT8, DIIO_PBDC_EN);	/* SSL40 */
 			r7s72100_pfc_pin_assign(P2_10, ALT8, DIIO_PBDC_EN);	/* MOSI4 */
 			r7s72100_pfc_pin_assign(P2_11, ALT8, DIIO_PBDC_EN);	/* MISO4 */
+
+			/* SCI0 Testing */
+			r7s72100_pfc_pin_assign(P3_5, ALT5, DIIO_PBDC_DIS);	/* SCI0 TX */
+			r7s72100_pfc_pin_assign(P3_6, ALT5, DIIO_PBDC_DIS);	/* SCI0 RX */
 		}
 		if( !i )
 			printk("%s: RSPI4 enabled on CN15\n",__func__);
