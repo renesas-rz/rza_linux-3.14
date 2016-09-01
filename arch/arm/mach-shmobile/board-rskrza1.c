@@ -76,6 +76,7 @@
 /* Board Options */
 //#define RSPI_TESTING	/* Uncomment for RSPI4 enabled on CN15 */
 //#define SCI_TESTING	/* Uncomment for SCI0 enabled on JP1 */
+//#define HDMI_TESTING  /* Uncomment to enable the HDMI port on the TFT App Board */
 
 
 /*
@@ -2197,6 +2198,15 @@ static int heartbeat(void * data)
 
 static void __init rskrza1_init_late(void)
 {
+	/* Init TFP410 for RGB888->HDMI */
+#if defined(HDMI_TESTING)
+	int err;
+	u8 ctrl;
+	err = rza1_i2c_read_byte(0, 0x3C, 0x08, &ctrl);
+	if(!err) err = rza1_i2c_write_byte(0, 0x3C, 0x08, 0xbf);
+	if(!err) err = rza1_i2c_read_byte(0, 0x3C, 0x08, &ctrl);
+	printk("tfp410: HDMI port enabled\n");
+#endif
 	/* Make RSPI4 availible. */
 	/* Done here because we have to wait till i2c driver is ready */
 #if defined(RSPI_TESTING) || (defined SCI_TESTING)
