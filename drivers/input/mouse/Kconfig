@@ -81,7 +81,7 @@ config MOUSE_PS2_CYPRESS
 config MOUSE_PS2_LIFEBOOK
 	bool "Fujitsu Lifebook PS/2 mouse protocol extension" if EXPERT
 	default y
-	depends on MOUSE_PS2 && X86 && DMI
+	depends on MOUSE_PS2
 	help
 	  Say Y here if you have a Fujitsu B-series Lifebook PS/2
 	  TouchScreen connected to your system.
@@ -120,6 +120,7 @@ config MOUSE_PS2_ELANTECH
 
 config MOUSE_PS2_SENTELIC
 	bool "Sentelic Finger Sensing Pad PS/2 protocol extension"
+	default y
 	depends on MOUSE_PS2
 	help
 	  Say Y here if you have a laptop (such as MSI WIND Netbook)
