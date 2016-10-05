@@ -194,9 +194,14 @@ static const u16 sh_eth_offset_fast_rz[SH_ETH_MAX_REGISTER_OFFSET] = {
 
 	[ARSTR]		= 0x0000,
 	[TSU_CTRST]	= 0x0004,
+	[TSU_FWSLC]	= 0x0038,
 	[TSU_VTAG0]	= 0x0058,
 	[TSU_ADSBSY]	= 0x0060,
 	[TSU_TEN]	= 0x0064,
+	[TSU_POST1]	= 0x0070,
+	[TSU_POST2]	= 0x0074,
+	[TSU_POST3]	= 0x0078,
+	[TSU_POST4]	= 0x007c,
 	[TSU_ADRH0]	= 0x0100,
 	[TSU_ADRL0]	= 0x0104,
 	[TSU_ADRH31]	= 0x01f8,
@@ -2556,6 +2561,8 @@ static void sh_eth_tsu_init(struct sh_eth_private *mdp)
 {
 	if (sh_eth_is_rz_fast_ether(mdp)) {
 		sh_eth_tsu_write(mdp, 0, TSU_TEN); /* Disable all CAM entry */
+		sh_eth_tsu_write(mdp, TSU_FWSLC_POSTENU | TSU_FWSLC_POSTENL,
+				 TSU_FWSLC);	/* Enable POST registers */
 		return;
 	}
 
