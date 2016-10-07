@@ -243,6 +243,11 @@ config MACH_GENMAI
 	depends on ARCH_R7S72100
 	select USE_OF
 
+config MACH_GRPEACH
+	bool "RZ/A1 GRPEACH board"
+	depends on ARCH_R7S72100
+	select USE_OF
+
 config MACH_RSKRZA1
 	bool "RZ/A1 RSK board"
 	depends on ARCH_R7S72100
