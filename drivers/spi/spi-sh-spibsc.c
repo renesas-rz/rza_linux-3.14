@@ -366,6 +366,22 @@ const struct spi_dev_param dummy_cycle_table[] =
 		.cmd[3] = CMD_4QOR,	/* Read Quad Out (4-byte address) */
 		.dcyle[3] = 8,
 	},
+	/* Spansion S25FL256S (32MB) */
+	/* Assumes Latency Code of 00 (defualt) */
+	{
+		.device_id = 0x10219,
+		.quad_setup = spansion_quad_setup,
+		.cmd_check = spansion_cmd_check,
+		.addr4_mode = spansion_addr4_mode,
+		.cmd[0] = CMD_FAST_READ,/* Fast Read (3-byte address) */
+		.dcyle[0] = 8,
+		.cmd[1] = CMD_4FAST_READ,/* Fast Read (4-byte address) */
+		.dcyle[1] = 8,
+		.cmd[2] = CMD_QOR,      /* Read Quad Out (3-byte address) */
+		.dcyle[2] = 8,
+		.cmd[3] = CMD_4QOR,     /* Read Quad Out (4-byte address) */
+		.dcyle[3] = 8,
+	},
 	/* Micron N25Q00AA (128MB) */
 	{
 		.device_id = 0x20BA21,
