@@ -444,11 +444,21 @@ static int rspi_pio_transfer(struct rspi_data *rspi, const u8 *tx, u8 *rx,
 			if (ret < 0)
 				return ret;
 		}
+		else {
+			int ret = rspi_data_out(rspi, 0);
+			if (ret < 0)
+				return ret;
+		}
 		if (rx) {
 			int ret = rspi_data_in(rspi);
 			if (ret < 0)
 				return ret;
 			*rx++ = ret;
+		}
+		else {
+			int ret = rspi_data_in(rspi);
+			if (ret < 0)
+				return ret;
 		}
 	}
 
@@ -825,6 +835,11 @@ static int rspi_prepare_message(struct spi_master *master,
 			return ret;
 	}
 
+	/* Dummy read to make sure peripheral is up and running after clock resume */
+	/* Note that you cannot trust the return value */
+	if (master->auto_runtime_pm)
+		rspi_read8(rspi, RSPI_SPCR);
+
 	/* Enable SPI function in master mode */
 	rspi_write8(rspi, rspi_read8(rspi, RSPI_SPCR) | SPCR_SPE, RSPI_SPCR);
 	return 0;
@@ -992,7 +1007,6 @@ static const struct spi_ops rspi_rz_ops = {
 	.set_config_register =	rspi_rz_set_config_register,
 	.transfer_one =		rspi_rz_transfer_one,
 	.mode_bits =		SPI_CPHA | SPI_CPOL | SPI_LOOP,
-	.flags =		SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX,
 	.fifo_size =		8,	/* 8 for TX, 32 for RX */
 };
 
@@ -1112,13 +1126,16 @@ static int rspi_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
-	pm_runtime_enable(&pdev->dev);
+//	master->auto_runtime_pm = true;	/* If true, turns off clock between transfers */
+	if (master->auto_runtime_pm)
+		pm_runtime_enable(&pdev->dev);
+	else
+		clk_enable(rspi->clk);
 
 	init_waitqueue_head(&rspi->wait);
 
 	master->bus_num = pdev->id;
 	master->setup = rspi_setup;
-	master->auto_runtime_pm = true;
 	master->transfer_one = ops->transfer_one;
 	master->prepare_message = rspi_prepare_message;
 	master->unprepare_message = rspi_unprepare_message;
