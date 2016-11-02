@@ -75,6 +75,7 @@
 
 /* Board Options */
 //#define RSPI_TESTING	/* Uncomment for RSPI4 enabled on CN15 */
+//#define RSPI4_SPI_FLASH /* Uncomment if a SPI Flash is connected to CN15 (requires RSPI_TESTING) */
 //#define SCI_TESTING	/* Uncomment for SCI0 enabled on JP1 */
 //#define HDMI_TESTING  /* Uncomment to enable the HDMI port on the TFT App Board */
 
@@ -1026,17 +1027,46 @@ static struct flash_platform_data spibsc0_flash_pdata = {
 };
 #endif
 
+#if defined(RSPI4_SPI_FLASH)
+/* SPI Flash connected to SPI-4 */
+static struct mtd_partition rspi4_flash_partitions[] = {
+	{
+		.name		= "rspi4_data",
+		.offset		= 0x00000000,
+		.size		= SZ_8M,	/* size limited to make erasing and formatting faster */
+	},
+};
+static struct flash_platform_data rspi4_flash_pdata = {
+	.name	= "m25p80",
+	.parts	= rspi4_flash_partitions,
+	.nr_parts = ARRAY_SIZE(rspi4_flash_partitions),
+	.type = "s25fl512s", /* Spansion S25FL512S */
+//	.type = "m25px64", /* Numonyx M25PX64 */
+};
+#endif
+
 /* Group the SPI flash devices so they can be reigstered */
 static struct spi_board_info rskrza1_spi_devices[] __initdata = {
 #if defined(RSPI_TESTING)
+  #if defined(RSPI4_SPI_FLASH)
 	{
-		/* spidev */
+		/* SPI Flash on RSPI4 */
+		.modalias = "m25p80",
+		.max_speed_hz = 5000000,
+		.bus_num = 4,
+		.chip_select = 0,
+		.platform_data = &rspi4_flash_pdata,
+	},
+  #else
+	{
+		/* Generic SPI interface (spidev) */
 		.modalias		= "spidev",
 		.max_speed_hz           = 5000000,
 		.bus_num                = 4,
 		.chip_select            = 0,
 		.mode			= SPI_MODE_3,
 	},
+  #endif
 #endif
 #if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SPI_SH_SPIBSC)
 	{
