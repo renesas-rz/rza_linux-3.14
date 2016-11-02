@@ -989,6 +989,7 @@ static const struct platform_device_info spibsc1_info __initconst = {
 
 /* BOARD: You can define the partitions however you want */
 /* Spansion flash on SPIBSC0 */
+#if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SPI_SH_SPIBSC)
 static struct mtd_partition spibsc0_flash_partitions[] = {
 	{
 		.name		= "spibsc0_loader",
@@ -1023,22 +1024,6 @@ static struct flash_platform_data spibsc0_flash_pdata = {
 	.nr_parts = ARRAY_SIZE(spibsc0_flash_partitions),
 	.type = "s25fl512s",
 };
-
-#if 0 /* Just for example, not populated on RSK */
-/* Dummy flash on SPIBSC1 */
-static struct mtd_partition spibsc1_flash_partitions[] = {
-	{
-		.name		= "spibsc1_data",
-		.offset		= 0x00000000,
-		.size		= MTDPART_SIZ_FULL,
-	},
-};
-static struct flash_platform_data spibsc1_flash_pdata = {
-	.name	= "m25p80",
-	.parts	= spibsc1_flash_partitions,
-	.nr_parts = ARRAY_SIZE(spibsc1_flash_partitions),
-	.type = "s25fl512s",
-};
 #endif
 
 /* Group the SPI flash devices so they can be reigstered */
@@ -1053,20 +1038,13 @@ static struct spi_board_info rskrza1_spi_devices[] __initdata = {
 		.mode			= SPI_MODE_3,
 	},
 #endif
+#if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SPI_SH_SPIBSC)
 	{
-		/* SPI Flash0 */
+		/* SPIBSC0 */
 		.modalias = "m25p80",
 		.bus_num = 5,
 		.chip_select = 0,
 		.platform_data = &spibsc0_flash_pdata,
-	},
-#if 0 /* Just for example */
-	{
-		/* SPI Flash1 */
-		.modalias = "m25p80",
-		.bus_num = 6,
-		.chip_select = 0,
-		.platform_data = &spibsc1_flash_pdata,
 	},
 #endif
 };
@@ -1980,7 +1958,6 @@ static void __init rskrza1_add_standard_devices(void)
 #if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SPI_SH_SPIBSC)
 	/* Need to disable both spibsc channels if using memory mapped QSPI */
 	platform_device_register_full(&spibsc0_info);		/* QSPI driver (non-XIP) */
-	//platform_device_register_full(&spibsc1_info);
 #else
 	platform_device_register_full(&qspi_flash_info);	/* Memory Mapped XIP QSPI */
 #endif
