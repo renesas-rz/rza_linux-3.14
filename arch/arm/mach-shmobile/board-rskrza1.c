@@ -78,6 +78,7 @@
 //#define RSPI4_SPI_FLASH /* Uncomment if a SPI Flash is connected to CN15 (requires RSPI_TESTING) */
 //#define SCI_TESTING	/* Uncomment for SCI0 enabled on JP1 */
 //#define HDMI_TESTING  /* Uncomment to enable the HDMI port on the TFT App Board */
+//#define CEU_TESTING  /* Uncomment if you plan on using CN40 to access the CEU pins */
 
 
 /*
@@ -1666,7 +1667,7 @@ static const struct platform_device_info ceu_info __initconst = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
-#ifdef CONFIG_VIDEO_SH_MOBILE_CEU
+#if defined(CONFIG_VIDEO_SH_MOBILE_CEU) || defined(CEU_TESTING)
 static struct pfc_pinmux_assign ceu_common[] = {
 	{ P11_11, ALT1, },	/* VIO_D23 */
 	{ P11_10, ALT1, },	/* VIO_D22 */
@@ -2226,7 +2227,7 @@ static void __init rskrza1_init_late(void)
 	}
 #endif
 
-#ifdef CONFIG_VIDEO_SH_MOBILE_CEU
+#if defined(CONFIG_VIDEO_SH_MOBILE_CEU) || defined(CEU_TESTING)
 	{
 		u8 value;
 		/* Set PX1_EN0 to 1 to enable camera and disable LCD */
@@ -2242,6 +2243,17 @@ static void __init rskrza1_init_late(void)
 
 	/* Start heartbeat kernel thread */
 	kthread_run(heartbeat, NULL,"heartbeat");
+
+#if defined(CEU_TESTING)
+	/* Enabled the CEU periphal clock */
+	{
+		struct clk *ceu_clk;
+
+		/* CEU clock */
+		ceu_clk = clk_get_sys("sh_mobile_ceu.0",NULL);
+		clk_enable(ceu_clk);
+	}
+#endif
 }
 
 #define WTCSR 0
