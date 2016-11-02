@@ -626,30 +626,6 @@ static const struct platform_device_info vdc5fb1_info __initconst = {
 #endif /* USE_LVDS */
 
 /* ==========================================================
- *			JCU Section
- * ==========================================================*/
-static const struct uio_info jcu_platform_pdata __initconst = {
-	.name = "JCU",
-	.version = "0",
-	.irq = 126, /* Not used */
-};
-
-static const struct resource jcu_resources[] __initconst = {
-	DEFINE_RES_MEM_NAMED(0xe8017000, 0x1000, "jcu:reg"), /* for JCU of RZ */
-	DEFINE_RES_MEM_NAMED(0xfcfe0000, 0x2000, "jcu:rstreg clkreg"), /* Use STBCR6 & SWRSTCR2 */
-	DEFINE_RES_MEM_NAMED(0x60800000, 0x100000, "jcu:iram"), /* (Non cacheable 1MB) */
-};
-
-static const struct platform_device_info jcu_info __initconst = {
-	.name		= "uio_pdrv_genirq",
-	.id		= 0,
-	.data		= &jcu_platform_pdata,
-	.size_data	= sizeof(jcu_platform_pdata),
-	.res		= jcu_resources,
-	.num_res	= ARRAY_SIZE(jcu_resources),
-};
-
-/* ==========================================================
  *                Ethernet Section
  * ==========================================================*/
 static const struct sh_eth_plat_data ether_pdata __initconst = {
@@ -1976,9 +1952,6 @@ static void __init rskrza1_add_standard_devices(void)
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
 
 #if !(XIP_KERNEL_WITHOUT_EXTERNAL_RAM)	/* Uses too much internal RAM */
-#ifdef CONFIG_UIO
-	platform_device_register_full(&jcu_info);
-#endif /* CONFIG_UIO */
 #endif /* XIP_KERNEL_WITHOUT_EXTERNAL_RAM */
 
 	platform_device_register_full(&ostm_info);	/* High precision OS Timer */
