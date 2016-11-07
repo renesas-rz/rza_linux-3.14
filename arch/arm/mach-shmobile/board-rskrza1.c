@@ -102,22 +102,15 @@ early_param("usbgs", early_usbgs);
  * Maps physical addresses to virtual addresses
  * ==========================================================*/
 static struct map_desc rza1_io_desc[] __initdata = {
-	/* create a 1:1 entity map for 0xe8xxxxxx
-	 * used by INTC.
+	/* Create a 1:1 entity map for 0xfcfexxxx
+	 * Used by:
+	 *   <> Port Pin Registers: 0xfcfe3000 - 0xfcfe8000 (pfc-rza1.c)
+	 *   <> Interrupt Contoller edge/level Registers: 0xfcfef800 - 0xfcfef806 (this file)
 	 */
 	{
-		.virtual	= 0xe8000000,
-		.pfn		= __phys_to_pfn(0xe8000000),
-		.length		= SZ_256M,
-		.type		= MT_DEVICE_NONSHARED
-	},
-	/* create a 1:1 entity map for 0xfcfexxxx
-	 * used by MSTP, CPG.
-	 */
-	{
-		.virtual	= 0xfcfe0000,
-		.pfn		= __phys_to_pfn(0xfcfe0000),
-		.length		= SZ_64K,
+		.virtual	= 0xfcfe3000,
+		.pfn		= __phys_to_pfn(0xfcfe3000),
+		.length		= (0xfcfef806 - 0xfcfe3000),
 		.type		= MT_DEVICE_NONSHARED
 	},
 #ifdef CONFIG_CACHE_L2X0
