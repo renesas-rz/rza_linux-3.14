@@ -249,11 +249,6 @@ static void vdc5fb_clear_fb(struct vdc5fb_priv *priv)
 	size = pdata->videomode->xres * pdata->videomode->yres
 		* (pdata->bpp / 8);
 
-	/* CODE: WRITE ENABLE SRAM */
-	iowrite8(0xff, IOMEM(0xFCFE0400));
-	iowrite8(0xff, IOMEM(0xFCFE0404));
-	iowrite8(0x0f, IOMEM(0xFCFE0408));
-
 	memset(start, 0x0, size);
 }
 
