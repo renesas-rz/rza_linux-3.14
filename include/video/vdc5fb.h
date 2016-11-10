@@ -156,6 +156,8 @@ struct vdc5fb_pdata {
 	int panel_ocksel;	/* should be OCKSEL_XXX */
 	unsigned long panel_width;
 	unsigned long panel_height;
+	unsigned long panel_pixel_xres;
+	unsigned long panel_pixel_yres;
 	unsigned long flm_max;
 	int out_format;
 	int use_lvds;

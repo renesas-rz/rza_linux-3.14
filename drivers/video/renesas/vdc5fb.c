@@ -78,6 +78,8 @@ struct vdc5fb_priv {
 	unsigned int rr;		/* refresh rate in Hz */
 	unsigned int res_fv;		/* vsync period (in fh) */
 	unsigned int res_fh;		/* hsync period (in dc) */
+	unsigned long panel_pixel_xres;
+	unsigned long panel_pixel_yres;
 	u32 pseudo_palette[PALETTE_NR];
 };
 
@@ -583,14 +585,14 @@ static int vdc5fb_init_sync(struct vdc5fb_priv *priv)
 	/* Note that OIR is not enabled here */
 
 	/* Set full-screen size */
-	tmp = SC_RES_F_VW(mode->yres);
+	tmp = SC_RES_F_VW(priv->panel_pixel_yres);
 	tmp |= SC_RES_F_VS(mode->vsync_len + mode->upper_margin);
 	vdc5fb_write(priv, SC0_SCL0_FRC6, tmp);
 	vdc5fb_write(priv, SC1_SCL0_FRC6, tmp);
 #ifdef OUTPUT_IMAGE_GENERATOR
 	vdc5fb_write(priv, OIR_SCL0_FRC6, tmp);
 #endif
-	tmp = SC_RES_F_HW(mode->xres);
+	tmp = SC_RES_F_HW(priv->panel_pixel_xres);
 	tmp |= SC_RES_F_HS(mode->hsync_len + mode->left_margin);
 	vdc5fb_write(priv, SC0_SCL0_FRC7, tmp);
 	vdc5fb_write(priv, SC1_SCL0_FRC7, tmp);
@@ -765,9 +767,9 @@ static int vdc5fb_init_graphics(struct vdc5fb_priv *priv)
 		switch (i) {
 			case 0:	tmp = 0x00800000;	// GR0 = Green
 				break;
-			case 1:	tmp = 0x00008000;	// GR1 = Blue
+			case 1:	tmp = 0x00000080;	// GR1 = red
 				break;
-			case 2:	tmp = 0x00000080;	// GR2 = red
+			case 2:	tmp = 0x00008000;	// GR2 = Blue
 				break;
 			case 4:	tmp = 0x00008080;	// GR3 = purple
 		}
@@ -843,10 +845,10 @@ static int vdc5fb_init_graphics(struct vdc5fb_priv *priv)
 
 	/* Set the LCD margins, other wise the pixels will be cliped
 	  (and background color will show through instead */
-	tmp = GR_GRC_VW(mode->yres);
+	tmp = GR_GRC_VW(priv->panel_pixel_yres);
 	tmp |= GR_GRC_VS(mode->vsync_len + mode->upper_margin);
 	vdc5fb_write(priv, GR_VIN_AB2, tmp);
-	tmp = GR_GRC_HW(mode->xres);
+	tmp = GR_GRC_HW(priv->panel_pixel_xres);
 	tmp |= GR_GRC_HS(mode->hsync_len + mode->left_margin);
 	vdc5fb_write(priv, GR_VIN_AB3, tmp);
 
@@ -942,7 +944,7 @@ static int vdc5fb_init_tcon(struct vdc5fb_priv *priv)
 	vs_s = (2 * 0);
 	vs_w = (2 * mode->vsync_len);
 	ve_s = (2 * (mode->vsync_len + mode->upper_margin));
-	ve_w = (2 * mode->yres);
+	ve_w = (2 * priv->panel_pixel_yres);
 
 	tmp1 = TCON_VW(vs_w);
 	tmp1 |= TCON_VS(vs_s);
@@ -970,7 +972,7 @@ static int vdc5fb_init_tcon(struct vdc5fb_priv *priv)
 	hs_s = 0;
 	hs_w = mode->hsync_len;
 	he_s = (mode->hsync_len + mode->left_margin);
-	he_w = mode->xres;
+	he_w = priv->panel_pixel_xres;
 
 	tmp1 = TCON_HW(hs_w);
 	tmp1 |= TCON_HS(hs_s);
@@ -1128,9 +1130,9 @@ static void vdc5fb_set_videomode(struct vdc5fb_priv *priv,
 		(unsigned int)((priv->dc % 1000000) / 1000),
 		priv->dcdr);
 
-	priv->res_fh = mode->hsync_len + mode->left_margin + mode->xres
+	priv->res_fh = mode->hsync_len + mode->left_margin + priv->panel_pixel_xres
 		+ mode->right_margin;
-	priv->res_fv = mode->vsync_len + mode->upper_margin + mode->yres
+	priv->res_fv = mode->vsync_len + mode->upper_margin + priv->panel_pixel_yres
 		+ mode->lower_margin;
 	priv->rr = (priv->dc / (priv->res_fh * priv->res_fv));
 
@@ -1726,6 +1728,18 @@ static int vdc5fb_probe(struct platform_device *pdev)
 	info->var.lower_margin = pdata->videomode->lower_margin;
 	info->var.hsync_len = pdata->videomode->hsync_len;
 	info->var.vsync_len = pdata->videomode->vsync_len;
+
+	if (!priv->pdata->panel_pixel_xres) {
+		/* If panel_pixel_xres,_yres were not set in the platform data,
+		 * assume the panel is the same size as in the video mode */
+		priv->panel_pixel_xres = pdata->videomode->xres;
+		priv->panel_pixel_yres = pdata->videomode->yres;
+	}
+	else {
+		/* copy from platform data */
+		priv->panel_pixel_xres = pdata->panel_pixel_xres;
+		priv->panel_pixel_yres = pdata->panel_pixel_yres;
+	}
 
 	error = register_framebuffer(info);
 	if (error < 0)
