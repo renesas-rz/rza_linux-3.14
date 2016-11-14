@@ -71,10 +71,11 @@ static unsigned int regs_addr[][REG_NUM] = {
 	{PFC(11), PFCE(11), PFCAE(11)},
 };
 
+#if 0 /* Removed because we are using dummy port bits now */
 static unsigned int port_nbit[] = {
-	6, 16, 16, 16, 16, 11, 16, 16, 16, 8, 16, 16,
+	16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16,
 };
-
+#endif
 
 static inline int _bit_modify(void __iomem *addr, int bit, bool data)
 {
@@ -103,12 +104,21 @@ static int set_direction(unsigned int port, int bit, enum pfc_direction dir)
 	return 0;
 }
 
+/* return the port number and modify the passed offset to be the bit */
 static int get_port_bitshift(int *offset)
 {
 	unsigned int i;
+
+#if 0 /* Removed because we are using dummy port bits now */
 	for (i = 0; *offset >= port_nbit[i]; *offset -= port_nbit[i++])
 		if (i > ARRAY_SIZE(port_nbit))
 			return -1;
+#else
+	if (*offset >= GPIO_NR)
+		return -1;
+	i = *offset / 16;
+	*offset = *offset % 16;
+#endif
 	return i;
 }
 
@@ -169,6 +179,11 @@ static int chip_direction_output(struct gpio_chip *chip, unsigned offset,
 
 static const char * const gpio_names[] = {
 	"P0_0", "P0_1", "P0_2", "P0_3", "P0_4", "P0_5",
+
+	/* dummy entries */
+	"P0_6_DMY", "P0_7_DMY", "P0_8_DMY","P0_9_DMY","P0_10_DMY","P0_11_DMY",
+	"P0_12_DMY","P0_13_DMY","P0_14_DMY","P0_15_DMY",
+
 	"P1_0", "P1_1", "P1_2", "P1_3", "P1_4", "P1_5", "P1_6", "P1_7", "P1_8",
 	"P1_9", "P1_10", "P1_11", "P1_12", "P1_13", "P1_14", "P1_15",
 	"P2_0", "P2_1", "P2_2", "P2_3", "P2_4", "P2_5", "P2_6", "P2_7", "P2_8",
@@ -178,7 +193,7 @@ static const char * const gpio_names[] = {
 	"P4_0", "P4_1", "P4_2", "P4_3", "P4_4", "P4_5", "P4_6", "P4_7", "P4_8",
 	"P4_9", "P4_10", "P4_11", "P4_12", "P4_13", "P4_14", "P4_15",
 	"P5_0", "P5_1", "P5_2", "P5_3", "P5_4", "P5_5", "P5_6", "P5_7", "P5_8",
-	"P5_9", "P5_10",
+	"P5_9", "P5_10", "P5_11", "P5_12", "P5_13", "P5_14", "P5_15",
 	"P6_0", "P6_1", "P6_2", "P6_3", "P6_4", "P6_5", "P6_6", "P6_7", "P6_8",
 	"P6_9", "P6_10", "P6_11", "P6_12", "P6_13", "P6_14", "P6_15",
 	"P7_0", "P7_1", "P7_2", "P7_3", "P7_4", "P7_5", "P7_6", "P7_7", "P7_8",
@@ -186,6 +201,11 @@ static const char * const gpio_names[] = {
 	"P8_0", "P8_1", "P8_2", "P8_3", "P8_4", "P8_5", "P8_6", "P8_7", "P8_8",
 	"P8_9", "P8_10", "P8_11", "P8_12", "P8_13", "P8_14", "P8_15",
 	"P9_0", "P9_1", "P9_2", "P9_3", "P9_4", "P9_5", "P9_6", "P9_7",
+
+	/* dummy entires */
+	"P9_8_DMY", "P9_9_DMY", "P9_10_DMY", "P9_11_DMY", "P9_12_DMY", "P9_13_DMY",
+	"P9_14_DMY", "P9_15_DMY",
+
 	"P10_0", "P10_1", "P10_2", "P10_3", "P10_4", "P10_5", "P10_6", "P10_7",
 	"P10_8", "P10_9", "P10_10", "P10_11", "P10_12", "P10_13", "P10_14",
 	"P10_15",
