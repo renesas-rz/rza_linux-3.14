@@ -16,6 +16,7 @@
 #include <linux/bitops.h>
 #include <linux/completion.h>
 #include <linux/export.h>
+#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
