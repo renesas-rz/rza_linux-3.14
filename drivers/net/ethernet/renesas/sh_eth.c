@@ -805,7 +805,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 	.tx_check	= EESR_TC1 | EESR_FTC,
 	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT |
 			  EESR_RFE | EESR_RDE | EESR_RFRMER | EESR_TFE |
-			  EESR_TDE | EESR_ECI,
+			  EESR_TDE | EESR_ECI | EESR_TUC | EESR_ROC,
 	.fdr_value	= 0x0000070f,
 
 	.no_psr		= 1,
