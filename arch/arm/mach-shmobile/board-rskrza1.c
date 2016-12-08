@@ -102,6 +102,16 @@ early_param("usbgs", early_usbgs);
  * Maps physical addresses to virtual addresses
  * ==========================================================*/
 static struct map_desc rza1_io_desc[] __initdata = {
+	/* Create a 1:1 entity map for 0xfcfe0460
+	 * Used by:
+	 *   <> sh_scux: 0xfcfe0460 (register SWRSTCR1) (include/sound/sh_scux.h)
+	 */
+	{
+		.virtual	= 0xfcfe0460,
+		.pfn		= __phys_to_pfn(0xfcfe0460),
+		.length		= 4,
+		.type		= MT_DEVICE_NONSHARED
+	},
 	/* Create a 1:1 entity map for 0xfcfexxxx
 	 * Used by:
 	 *   <> Port Pin Registers: 0xfcfe3000 - 0xfcfe8000 (pfc-rza1.c)
