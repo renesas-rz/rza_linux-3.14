@@ -29,7 +29,6 @@
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <linux/spi/rspi.h>
-#include <linux/spi/sh_spibsc.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/serial_sci.h>
@@ -71,7 +70,6 @@
 #define XIP_KERNEL_WITHOUT_EXTERNAL_RAM (defined(CONFIG_XIP_KERNEL) && (CONFIG_PHYS_OFFSET == 0x20000000))
 
 /* Board Options */
-//#define RSPI_TESTING	/* Uncomment for RSPI4 enabled on CN15 */
 
 /*
  * early_usbgs()
@@ -625,30 +623,6 @@ static const struct platform_device_info vdc5fb1_info __initconst = {
 #endif /* USE_LVDS */
 
 /* ==========================================================
- *			JCU Section
- * ==========================================================*/
-static const struct uio_info jcu_platform_pdata __initconst = {
-	.name = "JCU",
-	.version = "0",
-	.irq = 126, /* Not used */
-};
-
-static const struct resource jcu_resources[] __initconst = {
-	DEFINE_RES_MEM_NAMED(0xe8017000, 0x1000, "jcu:reg"), /* for JCU of RZ */
-	DEFINE_RES_MEM_NAMED(0xfcfe0000, 0x2000, "jcu:rstreg clkreg"), /* Use STBCR6 & SWRSTCR2 */
-	DEFINE_RES_MEM_NAMED(0x60800000, 0x100000, "jcu:iram"), /* (Non cacheable 1MB) */
-};
-
-static const struct platform_device_info jcu_info __initconst = {
-	.name		= "uio_pdrv_genirq",
-	.id		= 0,
-	.data		= &jcu_platform_pdata,
-	.size_data	= sizeof(jcu_platform_pdata),
-	.res		= jcu_resources,
-	.num_res	= ARRAY_SIZE(jcu_resources),
-};
-
-/* ==========================================================
  *                Ethernet Section
  * ==========================================================*/
 static const struct sh_eth_plat_data ether_pdata __initconst = {
@@ -905,111 +879,6 @@ static const struct rspi_plat_data rspi_pdata __initconst = {
 					&rspi_pdata, sizeof(rspi_pdata))
 
 /* ==========================================================
- *		QSPI Flash Controller Section
- *
- * SPI Multi I/O
- * Supports Single SPI flash only
- * "SPIBSC" = SPI Bus State Controller
- * ==========================================================*/
-/* SPIBSC0 */
-static const struct sh_spibsc_info spibsc0_pdata = {
-	.bus_num	= 5,
-};
-
-static const struct resource spibsc0_resources[] __initconst = {
-	DEFINE_RES_MEM(0x3fefa000, 0x100),
-};
-
-static const struct platform_device_info spibsc0_info __initconst = {
-	.name		= "spibsc",
-	.id		= 0,
-	.data 		= &spibsc0_pdata,
-	.size_data	= sizeof(spibsc0_pdata),
-	.num_res	= ARRAY_SIZE(spibsc0_resources),
-	.res		= spibsc0_resources,
-};
-
-/* SPIBSC1 */
-static const struct sh_spibsc_info spibsc1_pdata = {
-	.bus_num	= 6,
-};
-
-static const struct resource spibsc1_resources[] __initconst = {
-	DEFINE_RES_MEM(0x3fefb000, 0x100),
-};
-
-static const struct platform_device_info spibsc1_info __initconst = {
-	.name		= "spibsc",
-	.id		= 1,
-	.data 		= &spibsc1_pdata,
-	.size_data	= sizeof(spibsc1_pdata),
-	.num_res	= ARRAY_SIZE(spibsc1_resources),
-	.res		= spibsc1_resources,
-};
-
-/* ==========================================================
- *		External SPI Flash Device Section
- *
- * Register the external SPI flash devices
- * Define the partitions of the flash devices
- * ==========================================================*/
-/* BOARD: This structure is to define what external SPI Flash device
-	  you have connected */
-
-/* BOARD: You can define the partitions however you want */
-/* Spansion flash on SPIBSC0 */
-static struct mtd_partition spibsc0_flash_partitions[] = {
-	{
-		.name		= "spibsc0_loader",
-		.offset		= 0x00000000,	
-		.size		= 0x00080000, 	
-		/* .mask_flags	= MTD_WRITEABLE, */
-	},
-	{
-		.name		= "spibsc0_bootenv",
-		.offset		= 0x00080000,	
-		.size		= 0x00040000, 	
-	},
-	{
-		.name		= "spibsc0_dtbs",
-		.offset		= 0x000C0000,	
-		.size		= 0x00040000,	
-	},
-	{
-		.name		= "spibsc0_kernel",
-		.offset		= 0x00100000, 
-		.size		= 0x00700000,
-	},
-};
-static struct flash_platform_data spibsc0_flash_pdata = {
-	.name	= "m25p80",
-	.parts	= spibsc0_flash_partitions,
-	.nr_parts = ARRAY_SIZE(spibsc0_flash_partitions),
-	.type = "mx25l6405d",
-};
-
-/* Group the SPI flash devices so they can be reigstered */
-static struct spi_board_info grpeach_spi_devices[] __initdata = {
-#if defined(RSPI_TESTING)
-	{
-		/* spidev */
-		.modalias		= "spidev",
-		.max_speed_hz           = 5000000,
-		.bus_num                = 4,
-		.chip_select            = 0,
-		.mode			= SPI_MODE_3,
-	},
-#endif
-	{
-		/* SPI Flash0 */
-		.modalias = "m25p80",
-		.bus_num = 5,
-		.chip_select = 0,
-		.platform_data = &spibsc0_flash_pdata,
-	},
-};
-
-/* ==========================================================
  *		MTD ROM Section
  *		(Memory mapped QSPI)
  *
@@ -1125,35 +994,6 @@ static const struct platform_device_info adc0_info __initconst = {
 	.res		= adc0_resources,
 	.num_res	= ARRAY_SIZE(adc0_resources),
 	.dma_mask	= DMA_BIT_MASK(32),
-};
-
-/* ==========================================================
- *		MMC Section
- *
- * Same for MMC Card or eMMC chip
- * ==========================================================*/
-static const struct resource sh_mmcif_resources[] __initconst = {
-	DEFINE_RES_MEM_NAMED(0xe804c800, 0x100, "MMCIF"),
-	DEFINE_RES_IRQ(gic_iid(300)),
-	DEFINE_RES_IRQ(gic_iid(301)),
-};
-
-static const struct sh_mmcif_plat_data sh_mmcif_pdata __initconst = {
-	.sup_pclk	= 0,
-	.ccs_unsupported = true,
-	.ocr		= MMC_VDD_32_33,
-	.caps		= MMC_CAP_4_BIT_DATA |
-			  MMC_CAP_8_BIT_DATA |
-			  MMC_CAP_NONREMOVABLE,
-};
-
-static const struct platform_device_info mmc_info __initconst = {
-	.name		= "sh_mmcif",
-	.id		= -1,
-	.res		= sh_mmcif_resources,
-	.num_res	= ARRAY_SIZE(sh_mmcif_resources),
-	.data		= &sh_mmcif_pdata,
-	.size_data	= sizeof(sh_mmcif_pdata),
 };
 
 /* ==========================================================
@@ -1584,15 +1424,15 @@ struct irq_res const irq_keep_list[] __initconst = {
 	{73, 1},	/* USB0 (host/device) */
 	{74, 1},	/* USB1 (host/device) */
 	{75, 23},	/* VDC0 */
-//	{99, 23},	/* VDC1 */
-	{126, 1},	/* JCU */
+	{99, 23},	/* VDC1 */
+//	{126, 1},	/* JCU */
 	{134, 2},	/* OSTM */
 	{139, 1},	/* MTU2-TGI0A (Kernel jiffies) */
 //	{170, 2}, {146, 2},	/* ADC and MTU2-TGI1A */
-	{189, 8},	/* RIIC0 (Touchscreen) */
-//	{197, 8},	/* RIIC1 */
+//	{189, 8},	/* RIIC0 */
+	{197, 8},	/* RIIC1 (CN9) */
 //	{205, 8},	/* RIIC2 */
-	{213, 8},	/* RIIC3 (Port Expander, EEPROM (MAC Addr), Audio Codec) */
+	{213, 8},	/* RIIC3 (CN16) */
 //	{221, 4},	/* SCIF0 */
 //	{225, 4},	/* SCIF1 */
 	{229, 4},	/* SCIF2 (Console) */
@@ -1612,7 +1452,7 @@ struct irq_res const irq_keep_list[] __initconst = {
 //	{276, 3},	/* RSPI2 */
 //	{279, 3},	/* RSPI3 */
 //	{282, 3},	/* RSPI4 */
-	{299, 3},	/* MMC */
+//	{299, 3},	/* MMC */
 //	{302, 3},	/* SDHI0 */
 	{305, 3},	/* SDHI1 */
 	{308, 3},	/* RTC */
@@ -1724,11 +1564,7 @@ static void __init grpeach_add_standard_devices(void)
 	/* Early BRESP enable, 16K*8way(defualt) */
 	/* NOTES: BRESP can be set for IP version after r2p0 */
 	/*        As of linux-3.16, cache-l2x0.c handles this automatically */
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,16,0)
-	l2x0_init(IOMEM(0xfffee000), 0x40000000, 0xffffffff);	/* Early BRESP enable */
-#else
 	l2x0_init(IOMEM(0xfffee000), 0x00000000, 0xffffffff);	/* Leave as defaults */
-#endif
 #endif
 #if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
 	remove_irqs();
@@ -1749,19 +1585,6 @@ static void __init grpeach_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P4_6, ALT5, DIIO_PBDC_EN);	/* SSIRxD0 */
 	r7s72100_pfc_pin_assign(P4_7, ALT5, SWIO_OUT_PBDCEN);	/* SSITxD0 */
 
-#ifndef CONFIG_MMC_SDHI
-	r7s72100_pfc_pin_assign(P3_8, ALT8, DIIO_PBDC_DIS);	/* MMC CD */
-	r7s72100_pfc_pin_assign(P3_10, ALT8, DIIO_PBDC_DIS);	/* MMC DAT1 */
-	r7s72100_pfc_pin_assign(P3_11, ALT8, DIIO_PBDC_DIS);	/* MMC DAT0 */
-	r7s72100_pfc_pin_assign(P3_12, ALT8, DIIO_PBDC_DIS);	/* MMC CLK */
-	r7s72100_pfc_pin_assign(P3_13, ALT8, DIIO_PBDC_DIS);	/* MMC CMD */
-	r7s72100_pfc_pin_assign(P3_14, ALT8, DIIO_PBDC_DIS);	/* MMC DAT3*/
-	r7s72100_pfc_pin_assign(P3_15, ALT8, DIIO_PBDC_DIS);	/* MMC DAT2 */
-	r7s72100_pfc_pin_assign(P4_0, ALT8, DIIO_PBDC_DIS);	/* MMC DAT4 */
-	r7s72100_pfc_pin_assign(P4_1, ALT8, DIIO_PBDC_DIS);	/* MMC DAT5 */
-	r7s72100_pfc_pin_assign(P4_2, ALT8, DIIO_PBDC_DIS);	/* MMC DAT6*/
-	r7s72100_pfc_pin_assign(P4_3, ALT8, DIIO_PBDC_DIS);	/* MMC DAT7 */
-#else
 	r7s72100_pfc_pin_assign(P3_8, ALT7, DIIO_PBDC_DIS);	/* SDHI1 CD */
 	r7s72100_pfc_pin_assign(P3_9, ALT7, DIIO_PBDC_DIS);	/* SDHI1 WP */
 	r7s72100_pfc_pin_assign(P3_10, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT1 */
@@ -1770,6 +1593,9 @@ static void __init grpeach_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P3_13, ALT7, DIIO_PBDC_EN);	/* SDHI1 CMD */
 	r7s72100_pfc_pin_assign(P3_14, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT3*/
 	r7s72100_pfc_pin_assign(P3_15, ALT7, DIIO_PBDC_EN);	/* SDHI1 DAT2 */
+
+#ifdef CONFIG_VIDEO_SH_MOBILE_CEU
+	ceu_pinmux();
 #endif
 
 	/* Set up IRQ for touchscreen */
@@ -1785,10 +1611,6 @@ static void __init grpeach_add_standard_devices(void)
 	r7s72100_pfc_pin_assign(P5_9, ALT5, DIIO_PBDC_DIS);	/* CAN CAN1RX */
 	r7s72100_pfc_pin_assign(P5_10, ALT5, DIIO_PBDC_DIS);	/* CAN CAN1TX */
 
-	/* Ch 2 (conflicts with SDRAM) */
-	//r7s72100_pfc_pin_assign(P7_2, ALT5, DIIO_PBDC_DIS);	/* CAN CAN2RX */
-	//r7s72100_pfc_pin_assign(P7_3, ALT5, DIIO_PBDC_DIS);	/* CAN CAN2TX */
-
 	platform_device_register_full(&rz_can_device);
 #endif
 
@@ -1797,51 +1619,32 @@ static void __init grpeach_add_standard_devices(void)
 	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
 	i2c_register_board_info(3, i2c3_devices, ARRAY_SIZE(i2c3_devices));
 
-#if !(XIP_KERNEL_WITHOUT_EXTERNAL_RAM)	/* Uses too much internal RAM */
-#ifdef CONFIG_UOI
-	platform_device_register_full(&jcu_info);
-#endif /* CONFIG_UIO */
-#endif /* XIP_KERNEL_WITHOUT_EXTERNAL_RAM */
-
 	platform_device_register_full(&ostm_info);	/* High precision OS Timer */
 	platform_device_register_full(&dma_info);	/* DMA */
 	platform_device_register_full(&alsa_soc_info);	/* Sound */
 	platform_device_register_full(&scux_info);	/* Sound */
 	platform_device_register_full(&ether_info);	/* Ethernet */
 
-	platform_device_register_full(&riic0_info);	/* I2C0: Touchscreen and camera */
-//	platform_device_register_full(&riic1_info);	/* I2C1: Not used */
+//	platform_device_register_full(&riic0_info);	/* I2C0: Not used */
+	platform_device_register_full(&riic1_info);	/* I2C1 */
 //	platform_device_register_full(&riic2_info);	/* I2C2: Not used */
-	platform_device_register_full(&riic3_info);	/* I2C3: Port Expander, EEPROM (MAC Addr), Audio Codec */
+	platform_device_register_full(&riic3_info);	/* I2C3 */
 	platform_device_register_full(&rtc_info);	/* RTC */
 
-#ifndef CONFIG_VIDEO_SH_MOBILE_CEU
 	platform_device_register_full(&vdc5fb1_info);	/* VDC5 ch1 */
 	//platform_device_register_full(&simplefb_info);	/* Simplefb (FLOATING LAYER) */
-#else
+
 	platform_device_register_full(&ceu_info);		/* CEU */
 	platform_device_register_full(&ceu_camera_info);	/* OV7670 */
-#endif
 
-#ifdef USE_LVDS
-	platform_device_register_full(&vdc5fb1_info);	/* VDC5 ch1 */
-#endif
 
-#if !defined(CONFIG_XIP_KERNEL) && defined(CONFIG_SPI_SH_SPIBSC)
-	/* Need to disable both spibsc channels if using memory mapped QSPI */
-	platform_device_register_full(&spibsc0_info);		/* QSPI driver (non-XIP) */
-#else
 	platform_device_register_full(&qspi_flash_info);	/* Memory Mapped XIP QSPI */
-#endif
+
 	platform_device_register_full(&adc0_info);	/* ADC */
 
-//	platform_device_register_full(&sdhi0_info);	/* SDHI ch0 */ /* not populated on board */
-
-#ifndef CONFIG_MMC_SDHI
-	platform_device_register_full(&mmc_info);	/* MMC */
-#else
+//	platform_device_register_full(&sdhi0_info);	/* SDHI ch0 */
 	platform_device_register_full(&sdhi1_info);	/* SDHI ch1 */ 
-#endif
+
 	r7s72100_pfc_pin_assign(P3_8, PMODE, PORT_OUT_LOW);	/*VBUS*/
 	r7s72100_pfc_pin_assign(P8_15, PMODE, PORT_OUT_HIGH);	/*contrast*/
 	r7s72100_pfc_pin_assign(P8_1, PMODE, PORT_OUT_HIGH);	/*lcd_blon*/
@@ -1862,13 +1665,7 @@ static void __init grpeach_add_standard_devices(void)
 //	r7s72100_register_rspi(1);	/* RSPI ch1 */ /* Not used */
 //	r7s72100_register_rspi(2);	/* RSPI ch2 */ /* Not used */
 //	r7s72100_register_rspi(3);	/* RSPI ch3 */ /* Not used */
-#if defined(RSPI_TESTING)
-	r7s72100_register_rspi(4);	/* RSPI ch4 */ /* Not used */
-#endif
-
-	/* Register SPI device information */
-	spi_register_board_info(grpeach_spi_devices,
-				ARRAY_SIZE(grpeach_spi_devices));
+//	r7s72100_register_rspi(4);	/* RSPI ch4 */ /* Not used */
 
 //	r7s72100_register_scif(0);	/* SCIF ch0 */ /* Not used */
 //	r7s72100_register_scif(1);	/* SCIF ch1 */ /* Not used */
@@ -2005,55 +1802,6 @@ static int heartbeat(void * data)
 
 static void __init grpeach_init_late(void)
 {
-	/* Make RSPI4 availible. */
-	/* Done here because we have to wait till i2c driver is ready */
-#if defined(RSPI_TESTING) && (defined CONFIG_SPI_RSPI) && !(defined CONFIG_SH_ETH)
-	{
-		int i;
-		u8 value;
-
-		/* Set P2_0-P2_11 and p3_3-p3_6 to input pins */
-		for (i=0;i<=11;i++)
-			r7s72100_pfc_pin_assign(P2_0+i, PMODE, DIR_IN);
-		for (i=3;i<=6;i++)
-			r7s72100_pfc_pin_assign(P3_0+i, PMODE, DIR_IN);
-
-		/* Set PX1_EN1 to 0 to disable Ethernet */
-		/* PX1_EN1 is controled through Port Expanders on I2C3 */
-		/* Register address 1 is the Output Control register */
-		i = rza1_i2c_read_byte(3, 0x21, 0x01, &value);
-		value &= ~0x02;		/* bit 1 = L */
-		if ( !i )
-			i = rza1_i2c_write_byte(3, 0x21, 0x01, value);
-		if ( !i ) {
-			/* Enable SPI4 pins */
-			
-			r7s72100_pfc_pin_assign(P2_8, ALT8, DIIO_PBDC_EN);	/* RSPCK4 */
-			r7s72100_pfc_pin_assign(P2_9, ALT8, DIIO_PBDC_EN);	/* SSL40 */
-			r7s72100_pfc_pin_assign(P2_10, ALT8, DIIO_PBDC_EN);	/* MOSI4 */
-			r7s72100_pfc_pin_assign(P2_11, ALT8, DIIO_PBDC_EN);	/* MISO4 */
-		}
-		if( !i )
-			printk("%s: RSPI4 enabled on CN15\n",__func__);
-		else
-			printk("%s: ERROR: Failed to set pins for RSPI4 usage\n",__func__);
-	}
-#endif
-
-#ifdef CONFIG_VIDEO_SH_MOBILE_CEU
-	{
-		u8 value;
-		/* Set PX1_EN0 to 1 to enable camera and disable LCD */
-		/* PX1_EN0 is controlled through Port Expanders on I2C3 */
-		/* Register address 1 is the Output Control register */
-		rza1_i2c_read_byte(3, 0x21, 0x01, &value);
-		value |= 0x01;	/* bit 1 = H */
-		rza1_i2c_write_byte(3, 0x21, 0x01, value);
-
-		ceu_pinmux();
-	}
-#endif
-
 	/* Start heartbeat kernel thread */
 	kthread_run(heartbeat, NULL,"heartbeat");
 }
