@@ -1773,22 +1773,23 @@ void print_stats(void)
 static int heartbeat(void * data)
 {
 	u8 index = 0;
-	u8 value;
-	int ret;
-	static const u8 pattern[8] = {7,6,5,3,7,3,5,6};
 
 	while(1) {
 
-		/* Register address 1 is the Output Contorl register */
-		ret = rza1_i2c_read_byte(3, 0x20, 0x01, &value);
-		value &= ~0x7;
-		value |= pattern[index++];
-		index &= 0x7;
+		switch (index)
+		{
+			case 0:
+			case 2:
+				r7s72100_pfc_pin_assign(P6_12, PMODE, PORT_OUT_HIGH);
+				break;
+			default:
+				r7s72100_pfc_pin_assign(P6_12, PMODE, PORT_OUT_LOW);
+				break;
+		}
 
-		if( !ret )
-			rza1_i2c_write_byte(3, 0x20, 0x01, value);
+		index = (index + 1) & 7;
 
-		msleep_interruptible(250);
+		msleep_interruptible(125);
 
 #ifdef STATS_OUT
 		/* Only print stats once per second */
