@@ -303,6 +303,7 @@ int r7s72100_pfc_pin_assign(enum pfc_pin_number pinnum, enum pfc_mode mode,
 	if (mode == PMODE) {
 		if (dir == DIR_IN) {
 			bit_modify(PIBC(port), bit, true); /*Inputbuffer allow*/
+			bit_modify(PM(port), bit, true);
 		} else if (dir == PORT_OUT_LOW) {
 			bit_modify(PORT(port), bit, false); /*Output low level*/
 			bit_modify(PM(port), bit, false);  /* Output mode */
