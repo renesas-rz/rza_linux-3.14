@@ -633,6 +633,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  via SCIF2 on Renesas RZ/A1H (R7S72100).
 
+	config DEBUG_R7S72100_SCIF3
+		bool "Kernel low-level debugging messages via SCIF3 on R7S72100"
+		depends on ARCH_R7S72100
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  via SCIF3 on Renesas RZ/A1H (R7S72100).
+
 	config DEBUG_S3C_UART0
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
@@ -985,6 +992,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/msm.S" if DEBUG_MSM_UART
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
 	default "debug/renesas-scif.S" if DEBUG_R7S72100_SCIF2
+	default "debug/renesas-scif.S" if DEBUG_R7S72100_SCIF3
 	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
 	default "debug/sti.S" if DEBUG_STI_UART
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
@@ -1057,6 +1065,7 @@ config DEBUG_UART_PHYS
 	default 0xd4018000 if DEBUG_MMP_UART3
 	default 0xe0000000 if ARCH_SPEAR13XX
 	default 0xe8008000 if DEBUG_R7S72100_SCIF2
+	default 0xe8008800 if DEBUG_R7S72100_SCIF3
 	default 0xf0000be0 if ARCH_EBSA110
 	default 0xf1012000 if DEBUG_MVEBU_UART_ALTERNATE
 	default 0xf1012000 if ARCH_DOVE || ARCH_KIRKWOOD || ARCH_MV78XX0 || \
@@ -1071,8 +1080,8 @@ config DEBUG_UART_PHYS
 	default 0xfffff700 if ARCH_IOP33X
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
 		DEBUG_LL_UART_EFM32 || \
-		DEBUG_UART_8250 || DEBUG_UART_PL01X || DEBUG_R7S72100_SCIF2
-
+		DEBUG_UART_8250 || DEBUG_UART_PL01X || DEBUG_R7S72100_SCIF2 || \
+		DEBUG_R7S72100_SCIF3
 config DEBUG_UART_VIRT
 	hex "Virtual base address of debug UART"
 	default 0xe0010fe0 if ARCH_RPC
