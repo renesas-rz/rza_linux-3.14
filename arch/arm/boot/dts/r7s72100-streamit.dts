@@ -1,0 +1,50 @@
+/*
+ * Device Tree Source for the Stream it! board
+ *
+ * Copyright (C) 2017 Renesas Electronics America
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/dts-v1/;
+#include "r7s72100.dtsi"
+
+/ {
+	model = "STREAMIT";
+	compatible = "renesas,streamit", "renesas,r7s72100";
+
+	aliases {
+		serial3 = &scif3;
+	};
+
+	chosen {
+		/* Add lots of white space so we have room to overwirte in u-boot */ 
+		bootargs = "console=ttySC3,115200 ignore_loglevel earlyprintk root=/dev/null rootflags=physaddr=0x18800000 \
+                                                                                       ";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0C000000 0x01000000>;	/* 16MB @ 0x0C000000 */
+	};
+
+	lbsc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+};
+
+&extal_clk {
+	clock-frequency = <13330000>;
+};
+
+&usb_x1_clk {
+	clock-frequency = <48000000>;
+};
+
+&scif3 {
+	status = "okay";
+};
+
