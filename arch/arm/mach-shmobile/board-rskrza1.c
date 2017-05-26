@@ -543,8 +543,14 @@ static const struct resource vdc5fb1_resources[VDC5FB_NUM_RES] __initconst = {
 
 static int vdc5fb_pinmux_lvds(struct platform_device *pdev)
 {
-	/* When using the LVDS pins, PIPCn.PIPCnm bits should be Set to 0
-	   and the port direction should be set as input. See Table 54.7 */
+	/*
+	 * When using the LVDS pins, PIPCn.PIPCnm bits should be set to 0
+	 * and the port direction should be set as input. See Table 54.7.
+	 * The reason it is set to input is because the LVDS block has
+	 * its own set of output drivers so we need to set the port
+	 * to input in order to disable the normal output port drivers so
+	 * they do not conflict.
+	 */
 	r7s72100_pfc_pin_assign(P5_0, ALT1, DIR_IN); /* TXCLKOUTP */
 	r7s72100_pfc_pin_assign(P5_1, ALT1, DIR_IN); /* TXCLKOUTM */
 	r7s72100_pfc_pin_assign(P5_2, ALT1, DIR_IN); /* TXOUT2P */
