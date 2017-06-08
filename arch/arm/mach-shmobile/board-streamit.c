@@ -250,43 +250,35 @@ struct pfc_pinmux_assign {
 
 /* BOARD: Change if your [LCD0] is on different pins */
 static struct pfc_pinmux_assign lcd0_common[] = {
-	{ P11_15, ALT5, },	/* LCD0_CLK */
-	{ P11_7,  ALT5, },	/* LCD0_DATA0 */
-	{ P11_6,  ALT5, },	/* LCD0_DATA1 */
-	{ P11_5,  ALT5, },	/* LCD0_DATA2 */
-	{ P11_4,  ALT5, },	/* LCD0_DATA3 */
-	{ P11_3,  ALT5, },	/* LCD0_DATA4 */
-	{ P11_2,  ALT5, },	/* LCD0_DATA5 */
-	{ P11_1,  ALT5, },	/* LCD0_DATA6 */
-	{ P11_0,  ALT5, },	/* LCD0_DATA7 */
-	{ P10_15, ALT5, },	/* LCD0_DATA8 */
-	{ P10_14, ALT5, },	/* LCD0_DATA9 */
-	{ P10_13, ALT5, },	/* LCD0_DATA10 */
-	{ P10_12, ALT5, },	/* LCD0_DATA11 */
-	{ P10_11, ALT5, },	/* LCD0_DATA12 */
-	{ P10_10, ALT5, },	/* LCD0_DATA13 */
-	{ P10_9,  ALT5, },	/* LCD0_DATA14 */
-	{ P10_8,  ALT5, },	/* LCD0_DATA15 */
-	{ P10_7,  ALT5, },	/* LCD0_DATA16 */
-	{ P10_6,  ALT5, },	/* LCD0_DATA17 */
-	{ P10_5,  ALT5, },	/* LCD0_DATA18 */
-	{ P10_4,  ALT5, },	/* LCD0_DATA19 */
-	{ P10_3,  ALT5, },	/* LCD0_DATA20 */
-	{ P10_2,  ALT5, },	/* LCD0_DATA21 */
-	{ P10_1,  ALT5, },	/* LCD0_DATA22 */
-	{ P10_0,  ALT5, },	/* LCD0_DATA23 */
+	{ P7_4, ALT6, },	/* LCD0_CLK */
+	{ P8_0,  ALT1, },	/* LCD0_DATA0 */
+	{ P8_1,  ALT1, },	/* LCD0_DATA1 */
+	{ P8_2,  ALT1, },	/* LCD0_DATA2 */
+	{ P8_3,  ALT1, },	/* LCD0_DATA3 */
+	{ P8_4,  ALT1, },	/* LCD0_DATA4 */
+	{ P8_5,  ALT1, },	/* LCD0_DATA5 */
+	{ P8_6,  ALT1, },	/* LCD0_DATA6 */
+	{ P8_7,  ALT1, },	/* LCD0_DATA7 */
+	{ P6_0,  ALT2, },	/* LCD0_DATA8 */
+	{ P6_1,  ALT2, },	/* LCD0_DATA9 */
+	{ P6_2,  ALT2, },	/* LCD0_DATA10 */
+	{ P6_3,  ALT2, },	/* LCD0_DATA11 */
+	{ P6_4,  ALT2, },	/* LCD0_DATA12 */
+	{ P6_5,  ALT2, },	/* LCD0_DATA13 */
+	{ P6_6,  ALT2, },	/* LCD0_DATA14 */
+	{ P6_7,  ALT2, },	/* LCD0_DATA15 */
 };
 
 /* BOARD: Change if your [LCD0] is on different pins */
 /* NOTE: Unused TCONS will be left as GPIO */
 static struct pfc_pinmux_assign lcd0_tcon[] = {
-	{ P11_14, ALT5, },	/* LCD0_TCON0 */
-	{ P11_13, ALT5, },	/* LCD0_TCON1 */
-	{ P11_12, ALT5, },	/* LCD0_TCON2 */
-	{ P11_11, ALT5, },	/* LCD0_TCON3 */
-	{ P11_10, ALT5, },	/* LCD0_TCON4 */
-	{ P11_9,  ALT5, },	/* LCD0_TCON5 */
-	{ P11_8,  ALT5, },	/* LCD0_TCON6 */
+	{ P8_8,  ALT1, },	/* LCD0_TCON0 */
+	{ P8_9,  ALT1, },	/* LCD0_TCON1 */
+	{ P8_10, ALT1, },	/* LCD0_TCON2 */
+	{ P8_11, ALT1, },	/* LCD0_TCON3 */
+	{ P8_12, ALT1, },	/* LCD0_TCON4 */
+	{ P8_13, ALT1, },	/* LCD0_TCON5 */
+	{ P8_14, ALT1, },	/* LCD0_TCON6 */
 };
 
 /* LCD Frame buffer Declaration
@@ -310,11 +302,11 @@ VDC5_0_FB_ADDR:
 /* BOARD: Define your [LCD0] frame buffer location and size. */
 #if XIP_KERNEL_WITHOUT_EXTERNAL_RAM
   #define VDC5_0_BPP 16 /* 16bpp or 32bpp */
-  #define VDC5_0_FBSIZE (800*480*VDC5_0_BPP/8)
+  #define VDC5_0_FBSIZE (480*272*VDC5_0_BPP/8)
   #define VDC5_0_FB_ADDR 0	/* allcoate at probe */
 #else
-  #define VDC5_0_BPP 32 /* 16bpp or 32bpp */
-  #define VDC5_0_FBSIZE (800*480*VDC5_0_BPP/8)
+  #define VDC5_0_BPP 16 /* 16bpp or 32bpp */
+  #define VDC5_0_FBSIZE (480*272*VDC5_0_BPP/8)
 
   /* Assume we are using external SDRAM for system memory so we have all
      the internal memory just for our LCD frame buffer */
@@ -354,20 +346,18 @@ static int vdc5fb_0_pinmux(struct platform_device *pdev)
 	return 0;
 }
 
-/* This structure defines the panel timings */
-/* BOARD: You should rename this strucutre to match your LCD panel */
-static struct fb_videomode videomode_gwp0700cnwv04 = {
-	.name		= "gwp0700cnwv04",
+static struct fb_videomode videomode_streamit_lcd = {
+	.name		= "streamit_lcd",
 	.refresh	= 60,
-	.xres		= 800,
-	.yres		= 480,
-	.pixclock	= PIXCLOCK(P1CLK, 2),
-	.left_margin	= 46,	/* horizontal back porch */
-	.right_margin	= 210,	/* horizontal front porch */
-	.upper_margin	= 23,	/* vertical back porch */
-	.lower_margin	= 22,	/* vertical front porch */
-	.hsync_len	= 40,	/* max */
-	.vsync_len	= 20,	/* max */
+	.xres		= 480,
+	.yres		= 272,
+	.pixclock	= PIXCLOCK(P1CLK, 8),
+	.left_margin	= 47,	/* horizontal back porch */
+	.right_margin	= 7,	/* horizontal front porch */
+	.upper_margin	= 7,	/* vertical back porch */
+	.lower_margin	= 2,	/* vertical front porch */
+	.hsync_len	= 41,	/* max */
+	.vsync_len	= 5,	/* max */
 	.sync		= 0,
 	.vmode		= 0,
 	.flag		= 0,
@@ -386,17 +376,17 @@ uint8_t gr3_fb[ 200*200*4 ] __attribute__ ((aligned (PAGE_SIZE)));
 
 /* BOARD: You should rename this strucutre to match your LCD panel */
 /* This structure passing info to the VDC5 driver */
-static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata = {
-	.name			= "gwp0700cnwv04",
-	.videomode		= &videomode_gwp0700cnwv04,
+static const struct vdc5fb_pdata vdc5fb_streamit_lcd_pdata = {
+	.name			= "streamit_lcd",
+	.videomode		= &videomode_streamit_lcd,
 	.panel_icksel		= ICKSEL_P1CLK,	/* see include/video/vdc5fb.h */
 	.bpp			= VDC5_0_BPP,
-	.panel_width		= 154,	/* mm, unused */
-	.panel_height		= 86,	/* mm, unused */
-	.panel_pixel_xres	= 800,	/* panel resolution */
-	.panel_pixel_yres	= 480,	/* panel resolution */
+	.panel_width		= 95,	/* mm, unused */
+	.panel_height		= 54,	/* mm, unused */
+	.panel_pixel_xres	= 480,	/* panel resolution */
+	.panel_pixel_yres	= 272,	/* panel resolution */
 	.flm_max		= 1,
-	.out_format		= OUT_FORMAT_RGB888,
+	.out_format		= OUT_FORMAT_RGB565,
 	.use_lvds		= 0,
 	.tcon_sel		= {
 		[LCD_TCON0]	= TCON_SEL_UNUSED,	/* MODE */
@@ -411,8 +401,8 @@ static const struct vdc5fb_pdata vdc5fb_gwp0700cnwv04_pdata = {
 	.layers			= {
 		/* Graphics 2 - Image Synthesizer */
 		/* Full LCD Panel - will be /dev/fb0 */
-		[2].xres	= 800,
-		[2].yres	= 480,
+		[2].xres	= 480,
+		[2].yres	= 272,
 		[2].x_offset	= 0,
 		[2].y_offset	= 0,
 #if VDC5_0_BPP == 16
@@ -444,8 +434,8 @@ static const struct platform_device_info vdc5fb0_info __initconst = {
 	.id		= 0,	/* ch 0 */
 	.res		= vdc5fb0_resources,
 	.num_res	= ARRAY_SIZE(vdc5fb0_resources),
-	.data		= &vdc5fb_gwp0700cnwv04_pdata,
-	.size_data	= sizeof(vdc5fb_gwp0700cnwv04_pdata),
+	.data		= &vdc5fb_streamit_lcd_pdata,
+	.size_data	= sizeof(vdc5fb_streamit_lcd_pdata),
 	.dma_mask	= DMA_BIT_MASK(32),	/* only needed if not hardcoding fb */
 };
 
@@ -1300,7 +1290,7 @@ struct irq_res const irq_keep_list[] __initconst = {
 //	{57, 1},	/* RZA1_DMAERR */
 	{73, 1},	/* USB0 (host/device) */
 	{74, 1},	/* USB1 (host/device) */
-//	{75, 23},	/* VDC0 */
+	{75, 23},	/* VDC0 */
 //	{99, 23},	/* VDC1 */
 //	{126, 1},	/* JCU */
 	{134, 2},	/* OSTM */
@@ -1476,7 +1466,7 @@ static void __init streamit_add_standard_devices(void)
 	//r7s72100_pfc_pin_assign(P4_6, ALT5, DIIO_PBDC_EN);	/* SSIRxD0 */
 	//r7s72100_pfc_pin_assign(P4_7, ALT5, SWIO_OUT_PBDCEN);	/* SSITxD0 */
 
-	/* SDHI ch 1 */
+	/* SDHI ch 1 (requires board modification, cannot use LCD at same time) */
 	r7s72100_pfc_pin_assign(P7_0, ALT3, DIIO_PBDC_DIS);	/* SDHI1 CD */
 	//r7s72100_pfc_pin_assign(P7_1, ALT3, DIIO_PBDC_DIS);	/* SDHI1 WP (not connected) */
 	r7s72100_pfc_pin_assign(P7_2, ALT3, DIIO_PBDC_EN);	/* SDHI1 DAT1 */
@@ -1501,7 +1491,7 @@ static void __init streamit_add_standard_devices(void)
 
 	/* ------------ Register Device and Drivers ---------------*/
 
-	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
+	//i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
 
 	platform_device_register_full(&ostm_info);	/* High precision OS Timer */
 	platform_device_register_full(&dma_info);	/* DMA */
@@ -1517,7 +1507,7 @@ static void __init streamit_add_standard_devices(void)
 
 //	platform_device_register_full(&rtc_info);	/* RTC */
 
-//	platform_device_register_full(&vdc5fb0_info);	/* VDC5 ch0 */
+	platform_device_register_full(&vdc5fb0_info);	/* VDC5 ch0 */
 	//platform_device_register_full(&simplefb_info);	/* Simplefb (FLOATING LAYER) */
 
 #ifdef CONFIG_VIDEO_SH_MOBILE_CEU
@@ -1533,13 +1523,13 @@ static void __init streamit_add_standard_devices(void)
 //	platform_device_register_full(&qspi_flash_info);	/* Memory Mapped XIP QSPI */
 #endif
 
-	platform_device_register_full(&sdhi1_info);	/* SDHI ch1 */
+	//platform_device_register_full(&sdhi1_info);	/* SDHI ch1 */
 
-	platform_device_register_full(&r8a66597_usb_gadget0_info);	/* USB ch0 as Device */
+	//platform_device_register_full(&r8a66597_usb_gadget0_info);	/* USB ch0 as Device */
 	platform_device_register_full(&r8a66597_usb_host0_info);	/* USB ch0 as Host */
 
-	platform_device_register_full(&r8a66597_usb_gadget1_info);	/* USB ch1 as Device */
-	platform_device_register_full(&r8a66597_usb_host1_info);	/* USB ch1 as Host */
+	//platform_device_register_full(&r8a66597_usb_gadget1_info);	/* USB ch1 as Device */
+	//platform_device_register_full(&r8a66597_usb_host1_info);	/* USB ch1 as Host */
 
 //	r7s72100_register_rspi(0);	/* RSPI ch0 */ /* Not used */
 //	r7s72100_register_rspi(1);	/* RSPI ch1 */ /* Not used */
