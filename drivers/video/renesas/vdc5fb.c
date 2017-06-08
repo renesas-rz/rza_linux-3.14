@@ -763,6 +763,7 @@ static int vdc5fb_init_graphics(struct vdc5fb_priv *priv)
 	update_addr[3] = (u32)priv->base + vdc5fb_offsets[GR3_UPDATE];
 
 	for (i=0;i<4;i++) {
+#ifdef DEBUG
 		/* Set Background color (really for debugging only) */
 		switch (i) {
 			case 0:	tmp = 0x00800000;	// GR0 = Green
@@ -771,10 +772,10 @@ static int vdc5fb_init_graphics(struct vdc5fb_priv *priv)
 				break;
 			case 2:	tmp = 0x00008000;	// GR2 = Blue
 				break;
-			case 4:	tmp = 0x00008080;	// GR3 = purple
+			case 3:	tmp = 0x00008080;	// GR3 = purple
 		}
 		vdc5fb_iowrite32(tmp, update_addr[i] + GR_BASE_OFFSET);	/* Background color (0-G-B-R) */
-
+#endif
 		layer = &priv->pdata->layers[i];
 		if( layer->xres == 0 ) {
 			/* not used */
