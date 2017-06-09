@@ -622,11 +622,11 @@ static struct edt_ft5x06_platform_data ft5216_pdata __initdata = {
 };
 
 
-static const struct i2c_board_info i2c0_devices[] __initconst = {
+static const struct i2c_board_info i2c1_devices[] __initconst = {
 	{
 		I2C_BOARD_INFO("ft5x06-ts", 0x38),
 		.platform_data = &ft5216_pdata,
-		.irq		= 33,
+		.irq		= 35,
 	},
 };
 
@@ -1277,9 +1277,9 @@ struct irq_res {
 };
 struct irq_res const irq_keep_list[] __initconst = {
 //	{32, 1},	/* IRQ0 */
-	{33, 1},	/* IRQ1 (for ft5x06-ts Touchsreen) */
+//	{33, 1},	/* IRQ1 */
 //	{34, 1},	/* IRQ2 */
-//	{35, 1},	/* IRQ3 */
+	{35, 1},	/* IRQ3 (for ft5216 touchscreen) */
 //	{36, 1},	/* IRQ4 */
 //	{37, 1},	/* IRQ5 */
 //	{38, 1},	/* IRQ6 */
@@ -1296,13 +1296,13 @@ struct irq_res const irq_keep_list[] __initconst = {
 	{134, 2},	/* OSTM */
 	{139, 1},	/* MTU2-TGI0A (Kernel jiffies) */
 //	{170, 2}, {146, 2},	/* ADC and MTU2-TGI1A */
-	{189, 8},	/* RIIC0 (Touchscreen) */
-//	{197, 8},	/* RIIC1 */
+//	{189, 8},	/* RIIC0 */
+	{197, 8},	/* RIIC1 (Touchscreen) */
 //	{205, 8},	/* RIIC2 */
 	{213, 8},	/* RIIC3 (Port Expander, EEPROM (MAC Addr), Audio Codec) */
 //	{221, 4},	/* SCIF0 */
 //	{225, 4},	/* SCIF1 */
-	{229, 4},	/* SCIF2 */
+//	{229, 4},	/* SCIF2 */
 	{233, 4},	/* SCIF3 (Console)*/
 //	{237, 4},	/* SCIF4 */
 //	{241, 4},	/* SCIF5 */
@@ -1321,7 +1321,7 @@ struct irq_res const irq_keep_list[] __initconst = {
 //	{282, 3},	/* RSPI4 */
 //	{299, 3},	/* MMC */
 //	{302, 3},	/* SDHI0 */
-	{305, 3},	/* SDHI1 */
+//	{305, 3},	/* SDHI1 */
 //	{308, 3},	/* RTC */
 //	{359, 1},	/* ETH */
 };
@@ -1456,9 +1456,9 @@ static void __init streamit_add_standard_devices(void)
 	r7s72100_add_dt_devices();
 
 	/* ------------ Pin setup section ---------------*/
-	/* RIIC Ch 0 (EEPROM) */
-	r7s72100_pfc_pin_assign(P1_0, ALT1, DIIO_PBDC_EN);	/* I2C SCL0 */
-	r7s72100_pfc_pin_assign(P1_1, ALT1, DIIO_PBDC_EN);	/* I2C SDA0 */
+	/* RIIC Ch 1 (Touchscreen) */
+	r7s72100_pfc_pin_assign(P1_2, ALT1, DIIO_PBDC_EN);	/* I2C SCL1 */
+	r7s72100_pfc_pin_assign(P1_3, ALT1, DIIO_PBDC_EN);	/* I2C SDA1 */
 
 	/* Audio */
 	//r7s72100_pfc_pin_assign(P4_4, ALT5, DIIO_PBDC_EN);	/* SSISCK0 */
@@ -1467,14 +1467,14 @@ static void __init streamit_add_standard_devices(void)
 	//r7s72100_pfc_pin_assign(P4_7, ALT5, SWIO_OUT_PBDCEN);	/* SSITxD0 */
 
 	/* SDHI ch 1 (requires board modification, cannot use LCD at same time) */
-	r7s72100_pfc_pin_assign(P7_0, ALT3, DIIO_PBDC_DIS);	/* SDHI1 CD */
+	//r7s72100_pfc_pin_assign(P7_0, ALT3, DIIO_PBDC_DIS);	/* SDHI1 CD */
 	//r7s72100_pfc_pin_assign(P7_1, ALT3, DIIO_PBDC_DIS);	/* SDHI1 WP (not connected) */
-	r7s72100_pfc_pin_assign(P7_2, ALT3, DIIO_PBDC_EN);	/* SDHI1 DAT1 */
-	r7s72100_pfc_pin_assign(P7_3, ALT3, DIIO_PBDC_EN);	/* SDHI1 DAT0 */
-	r7s72100_pfc_pin_assign(P7_4, ALT3, DIIO_PBDC_DIS);	/* SDHI1 CLK */
-	r7s72100_pfc_pin_assign(P7_5, ALT3, DIIO_PBDC_EN);	/* SDHI1 CMD */
-	r7s72100_pfc_pin_assign(P7_6, ALT3, DIIO_PBDC_EN);	/* SDHI1 DAT3 */
-	r7s72100_pfc_pin_assign(P7_7, ALT3, DIIO_PBDC_EN);	/* SDHI1 DAT2 */
+	//r7s72100_pfc_pin_assign(P7_2, ALT3, DIIO_PBDC_EN);	/* SDHI1 DAT1 */
+	//r7s72100_pfc_pin_assign(P7_3, ALT3, DIIO_PBDC_EN);	/* SDHI1 DAT0 */
+	//r7s72100_pfc_pin_assign(P7_4, ALT3, DIIO_PBDC_DIS);	/* SDHI1 CLK */
+	//r7s72100_pfc_pin_assign(P7_5, ALT3, DIIO_PBDC_EN);	/* SDHI1 CMD */
+	//r7s72100_pfc_pin_assign(P7_6, ALT3, DIIO_PBDC_EN);	/* SDHI1 DAT3 */
+	//r7s72100_pfc_pin_assign(P7_7, ALT3, DIIO_PBDC_EN);	/* SDHI1 DAT2 */
 
 #ifdef SCI_TESTING
 	r7s72100_pfc_pin_assign(P3_5, ALT5, DIIO_PBDC_DIS);	/* SCI0 TX */
@@ -1483,25 +1483,27 @@ static void __init streamit_add_standard_devices(void)
 
 	/* Set up IRQ for touchscreen */
 	{
-		/* Manually set IRQ1 for 'low level' trigger in Interrupt Control Register 1 */
+		/* Manually set IRQ3 for 'low level' trigger in Interrupt Control Register 1 */
 		void __iomem *irc1 = IOMEM(0xfcfef802);
-		__raw_writew((__raw_readw(irc1) & ~(0x3 << 2)), irc1);
-		r7s72100_pfc_pin_assign(P4_9, ALT8, DIIO_PBDC_DIS);  /* IRQ1 */
+		__raw_writew((__raw_readw(irc1) & ~(0x3 << 6)), irc1);
+		r7s72100_pfc_pin_assign(P1_11, ALT2, DIIO_PBDC_DIS);  /* IRQ3 */
 	}
 
 	/* ------------ Register Device and Drivers ---------------*/
 
-	//i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
+	i2c_register_board_info(1, i2c1_devices, ARRAY_SIZE(i2c1_devices));
 
 	platform_device_register_full(&ostm_info);	/* High precision OS Timer */
 	platform_device_register_full(&dma_info);	/* DMA */
 //	platform_device_register_full(&alsa_soc_info);	/* Sound */
 //	platform_device_register_full(&scux_info);	/* Sound */
 
-	platform_device_register_full(&ether_info);	/* Ethernet */
+#ifndef CONFIG_VDC5FB
+	platform_device_register_full(&ether_info);	/* Ethernet (conflicts with LCD pins) */
+#endif
 
 //	platform_device_register_full(&riic0_info);	/* I2C0: Not used */
-//	platform_device_register_full(&riic1_info);	/* I2C1: Not used */
+	platform_device_register_full(&riic1_info);	/* I2C1: Touchscreen */
 //	platform_device_register_full(&riic2_info);	/* I2C2: Not used */
 //	platform_device_register_full(&riic3_info);	/* I2C3: Not used */
 
