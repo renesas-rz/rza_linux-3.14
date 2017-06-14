@@ -1909,27 +1909,27 @@ static void __init rskrza1_add_standard_devices(void)
 
 	/* ------------ Pin setup section ---------------*/
 
-	r7s72100_pfc_pin_assign(P1_15, ALT1, DIIO_PBDC_EN);	/* AD7 */
+	r7s72100_pfc_pin_assign(P1_15, ALT1, DIIO_PBDC_DIS);	/* AD7 */
 	r7s72100_pfc_pin_assign(P1_0, ALT1, DIIO_PBDC_EN);	/* I2C SCL0 */
 	r7s72100_pfc_pin_assign(P1_1, ALT1, DIIO_PBDC_EN);	/* I2C SDA0 */
 
 	r7s72100_pfc_pin_assign(P4_4, ALT5, DIIO_PBDC_EN);	/* SSISCK0 */
 	r7s72100_pfc_pin_assign(P4_5, ALT5, DIIO_PBDC_EN);	/* SSIWS0 */
-	r7s72100_pfc_pin_assign(P4_6, ALT5, DIIO_PBDC_EN);	/* SSIRxD0 */
-	r7s72100_pfc_pin_assign(P4_7, ALT5, SWIO_OUT_PBDCEN);	/* SSITxD0 */
+	r7s72100_pfc_pin_assign(P4_6, ALT5, DIIO_PBDC_DIS);	/* SSIRxD0 */
+	r7s72100_pfc_pin_assign(P4_7, ALT5, SWIO_OUT_PBDCDIS);	/* SSITxD0 */
 
 #ifndef CONFIG_MMC_SDHI
 	r7s72100_pfc_pin_assign(P3_8, ALT8, DIIO_PBDC_DIS);	/* MMC CD */
-	r7s72100_pfc_pin_assign(P3_10, ALT8, DIIO_PBDC_DIS);	/* MMC DAT1 */
-	r7s72100_pfc_pin_assign(P3_11, ALT8, DIIO_PBDC_DIS);	/* MMC DAT0 */
+	r7s72100_pfc_pin_assign(P3_10, ALT8, DIIO_PBDC_EN);	/* MMC DAT1 */
+	r7s72100_pfc_pin_assign(P3_11, ALT8, DIIO_PBDC_EN);	/* MMC DAT0 */
 	r7s72100_pfc_pin_assign(P3_12, ALT8, DIIO_PBDC_DIS);	/* MMC CLK */
-	r7s72100_pfc_pin_assign(P3_13, ALT8, DIIO_PBDC_DIS);	/* MMC CMD */
-	r7s72100_pfc_pin_assign(P3_14, ALT8, DIIO_PBDC_DIS);	/* MMC DAT3*/
-	r7s72100_pfc_pin_assign(P3_15, ALT8, DIIO_PBDC_DIS);	/* MMC DAT2 */
-	r7s72100_pfc_pin_assign(P4_0, ALT8, DIIO_PBDC_DIS);	/* MMC DAT4 */
-	r7s72100_pfc_pin_assign(P4_1, ALT8, DIIO_PBDC_DIS);	/* MMC DAT5 */
-	r7s72100_pfc_pin_assign(P4_2, ALT8, DIIO_PBDC_DIS);	/* MMC DAT6*/
-	r7s72100_pfc_pin_assign(P4_3, ALT8, DIIO_PBDC_DIS);	/* MMC DAT7 */
+	r7s72100_pfc_pin_assign(P3_13, ALT8, DIIO_PBDC_EN);	/* MMC CMD */
+	r7s72100_pfc_pin_assign(P3_14, ALT8, DIIO_PBDC_EN);	/* MMC DAT3*/
+	r7s72100_pfc_pin_assign(P3_15, ALT8, DIIO_PBDC_EN);	/* MMC DAT2 */
+	r7s72100_pfc_pin_assign(P4_0, ALT8, DIIO_PBDC_EN);	/* MMC DAT4 */
+	r7s72100_pfc_pin_assign(P4_1, ALT8, DIIO_PBDC_EN);	/* MMC DAT5 */
+	r7s72100_pfc_pin_assign(P4_2, ALT8, DIIO_PBDC_EN);	/* MMC DAT6*/
+	r7s72100_pfc_pin_assign(P4_3, ALT8, DIIO_PBDC_EN);	/* MMC DAT7 */
 #else
 	r7s72100_pfc_pin_assign(P3_8, ALT7, DIIO_PBDC_DIS);	/* SDHI1 CD */
 	r7s72100_pfc_pin_assign(P3_9, ALT7, DIIO_PBDC_DIS);	/* SDHI1 WP */
