@@ -455,7 +455,7 @@ static void rz_can_err(struct net_device *ndev)
 		cf->data[2] |= CAN_ERR_PROT_OVERLOAD;
 		ndev->stats.rx_over_errors++;
 		ndev->stats.rx_errors++;
-		reg &= RZ_CAN_RSCAN0CmERFL_OVLF;
+		reg &= ~RZ_CAN_RSCAN0CmERFL_OVLF;
 		rz_can_write(priv, RZ_CAN_RSCAN0CmERFL(priv->m), reg);
 	}
 
