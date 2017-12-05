@@ -29,20 +29,32 @@ enum {
 	RZA1DMA_SLAVE_MMCIF_RX,
 };
 
-struct chcfg_reg {
-	u32	reqd:1;
-	u32	loen:1;
-	u32	hien:1;
-	u32	lvl:1;
-	u32	am:3;
-	u32	sds:4;
-	u32	dds:4;
-	u32	tm:1;
+union chcfg_reg {
+	u32	v;
+	struct {
+		u32 sel:  3;	/* LSB */
+		u32 reqd: 1;
+		u32 loen: 1;
+		u32 hien: 1;
+		u32 lvl:  1;
+		u32 _mbz0:1;
+		u32 am:   3;
+		u32 _mbz1:1;
+		u32 sds:  4;
+		u32 dds:  4;
+		u32 _mbz2:2;
+		u32 tm:   1;
+		u32 _mbz3:9;
+	};
 };
 
-struct dmars_reg {
-	u32	rid:2;
-	u32	mid:7;
+union dmars_reg {
+	u32 v;
+	struct {
+		u32 rid:   2;	/* LSB */
+		u32 mid:   7;
+		u32 _mbz0:23;
+	};
 };
 
 /*
@@ -63,8 +75,8 @@ struct rza1_dma_slave {
 struct rza1_dma_slave_config {
 	int			slave_id;
 	dma_addr_t		addr;
-	struct chcfg_reg	chcfg;
-	struct dmars_reg	dmars;
+	union chcfg_reg		chcfg;
+	union dmars_reg		dmars;
 };
 
 struct rza1_dma_pdata {
