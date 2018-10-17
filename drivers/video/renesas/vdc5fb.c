@@ -499,10 +499,6 @@ static int vdc5fb_init_lvds(struct vdc5fb_priv *priv)
 
 	msleep(1);
 
-	while(1)
-		if ((vdc5fb_read(priv, LPLLMONR) & LVDS_PLL_LD) != 0)
-			break;
-
 	tmp = vdc5fb_read(priv, LCLKSELR);
 	tmp |= LVDS_CLK_EN;
 	vdc5fb_write(priv, LCLKSELR, tmp);
